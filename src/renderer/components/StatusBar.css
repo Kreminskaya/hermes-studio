@@ -1,0 +1,21 @@
+.statusbar {
+  height: 26px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.sb-pill {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.sb-pill.green { border-color: rgba(34,197,94,.4); color: var(--green); }
+.sb-pill.dim   { color: var(--text-dim); border-color: var(--border-dim); }
