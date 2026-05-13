@@ -3,56 +3,94 @@
   align-items: flex-start;
   gap: 14px;
   margin: 16px;
-  padding: 16px;
-  background: rgba(108,99,255,.08);
-  border: 1px solid rgba(108,99,255,.3);
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
   border-radius: var(--radius-lg);
+
+  background: linear-gradient(
+    135deg,
+    rgba(124, 111, 255, 0.12) 0%,
+    rgba(167, 139, 250, 0.06) 60%,
+    rgba(192, 132, 252, 0.04) 100%
+  );
+  border: 1px solid rgba(124, 111, 255, 0.22);
 }
 
-.setup-icon { font-size: 22px; flex-shrink: 0; }
+/* subtle glow in top-left corner */
+.setup-banner::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -10px;
+  width: 120px;
+  height: 80px;
+  background: radial-gradient(ellipse, rgba(124,111,255,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
 
-.setup-body { flex: 1; }
+.setup-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.setup-body {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
 
 .setup-title {
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  font-size: 13.5px;
 }
 
 .setup-desc {
   font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .setup-desc code {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: rgba(124,111,255,0.12);
+  border: 1px solid rgba(124,111,255,0.2);
   border-radius: 4px;
-  padding: 0 4px;
+  padding: 0 5px;
   font-family: 'SF Mono', monospace;
-  font-size: .85em;
+  font-size: .84em;
+  color: var(--accent-2);
 }
 
 .setup-error {
-  margin-top: 6px;
+  margin-top: 7px;
   font-size: 12px;
   color: var(--red);
 }
 
 .setup-btn {
   flex-shrink: 0;
-  background: var(--accent);
+  background: var(--grad-accent);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  padding: 8px 16px;
+  padding: 9px 18px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity .15s, box-shadow .15s;
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 16px rgba(124,111,255,0.3);
+  letter-spacing: 0.01em;
 }
 
-.setup-btn:disabled { opacity: .6; cursor: not-allowed; }
-.setup-btn:hover:not(:disabled) { opacity: .85; }
+.setup-btn:disabled { opacity: .5; cursor: not-allowed; }
+.setup-btn:hover:not(:disabled) {
+  opacity: .9;
+  box-shadow: 0 4px 22px rgba(124,111,255,0.5);
+}
