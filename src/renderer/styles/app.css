@@ -3,18 +3,53 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  background: var(--bg-base);
 }
 
+/* ─── Titlebar with aurora gradient ─────────────────────────────────────────── */
 .titlebar {
   height: var(--header-h);
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-dim);
-  -webkit-app-region: drag;
   flex-shrink: 0;
-  /* space for macOS traffic lights */
+  -webkit-app-region: drag;
   padding-left: 80px;
   display: flex;
   align-items: center;
+  position: relative;
+  overflow: hidden;
+
+  background: linear-gradient(
+    135deg,
+    #22124a 0%,
+    #18103a 20%,
+    #0f1130 50%,
+    #090c1e 100%
+  );
+
+  border-bottom: 1px solid rgba(140, 110, 255, 0.22);
+}
+
+/* aurora blob — left */
+.titlebar::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 70px;
+  width: 260px;
+  height: 110px;
+  background: radial-gradient(ellipse, rgba(140, 110, 255, 0.32) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+/* aurora blob — right, warmer violet */
+.titlebar::after {
+  content: '';
+  position: absolute;
+  top: -15px;
+  right: 60px;
+  width: 200px;
+  height: 90px;
+  background: radial-gradient(ellipse, rgba(192, 90, 255, 0.2) 0%, transparent 68%);
+  pointer-events: none;
 }
 
 .app-body {
@@ -29,4 +64,18 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-base);
+  position: relative;
+}
+
+/* very subtle ambient light from top-left corner of main area */
+.main-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: linear-gradient(180deg, rgba(124, 111, 255, 0.04) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
 }

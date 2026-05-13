@@ -3,98 +3,142 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .cron-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-dim);
-  background: var(--bg-panel);
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   flex-shrink: 0;
+  position: relative;
+
+  background: linear-gradient(
+    180deg,
+    rgba(18, 12, 42, 0.8) 0%,
+    rgba(10, 8, 22, 0.4) 100%
+  );
 }
 
-.cron-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.cron-header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(124,111,255,0.45) 30%,
+    rgba(167,139,250,0.45) 65%,
+    transparent
+  );
+}
+
+.cron-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
 
 .cron-actions { display: flex; gap: 8px; align-items: center; }
 
 .refresh-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 7px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 9px;
+  transition: background .15s, color .15s;
+  line-height: 1;
 }
-.refresh-btn:hover { color: var(--text-primary); }
+.refresh-btn:hover {
+  background: rgba(124,111,255,0.12);
+  color: var(--accent-2);
+}
 
 .add-btn {
-  background: var(--accent);
+  background: var(--grad-accent);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  padding: 7px 14px;
+  padding: 7px 15px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity .15s, box-shadow .15s;
+  box-shadow: 0 4px 14px rgba(124,111,255,0.3);
+  letter-spacing: 0.01em;
 }
-.add-btn:hover { opacity: .85; }
+.add-btn:hover { opacity: .88; box-shadow: 0 4px 20px rgba(124,111,255,0.5); }
 
+/* ─── Form ─── */
 .cron-form {
   padding: 16px 20px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-dim);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   gap: 12px;
   flex-shrink: 0;
+  background: rgba(124,111,255,0.04);
 }
 
-.form-row { display: flex; flex-direction: column; gap: 4px; }
-.form-row label { font-size: 11px; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+.form-row { display: flex; flex-direction: column; gap: 5px; }
+.form-row label {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
 
 .form-input {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius);
   color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
-  padding: 8px 12px;
+  padding: 9px 13px;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color .15s, box-shadow .15s;
 }
-.form-input:focus { border-color: var(--accent); }
+.form-input:focus {
+  border-color: rgba(124,111,255,0.4);
+  box-shadow: 0 0 0 3px rgba(124,111,255,0.08);
+}
 .form-textarea { resize: vertical; }
-
 .form-hint { font-size: 11px; color: var(--text-dim); }
 
 .save-btn {
   align-self: flex-start;
-  background: var(--accent);
+  background: var(--grad-accent);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  padding: 8px 18px;
+  padding: 9px 20px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity .15s, box-shadow .15s;
+  box-shadow: 0 4px 14px rgba(124,111,255,0.28);
 }
-.save-btn:disabled { opacity: .4; cursor: not-allowed; }
-.save-btn:hover:not(:disabled) { opacity: .85; }
+.save-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.save-btn:hover:not(:disabled) { opacity: .88; box-shadow: 0 4px 22px rgba(124,111,255,0.5); }
 
 .cron-error {
   margin: 16px 20px;
-  padding: 12px;
-  background: rgba(239,68,68,.08);
-  border: 1px solid rgba(239,68,68,.3);
+  padding: 13px 16px;
+  background: rgba(248,113,113,0.07);
+  border: 1px solid rgba(248,113,113,0.2);
   border-radius: var(--radius);
   font-size: 13px;
   color: var(--red);
+  border-radius: var(--radius-lg);
 }
 
 .cron-loading, .cron-empty {
@@ -103,13 +147,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-dim);
 }
-
-.empty-icon { font-size: 32px; }
+.empty-icon { font-size: 34px; filter: grayscale(0.2); }
 .empty-sub { font-size: 12px; }
 
+/* ─── Jobs ─── */
 .jobs-list {
   flex: 1;
   overflow-y: auto;
@@ -120,39 +164,55 @@
 }
 
 .job-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-dim);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  transition: border-color .15s;
+  gap: 13px;
+  transition: border-color .18s, background .18s;
+  position: relative;
+  overflow: hidden;
+
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
 }
-.job-card:hover { border-color: var(--border); }
+.job-card:hover {
+  background: rgba(124,111,255,0.04);
+  border-color: rgba(124,111,255,0.18);
+}
 .job-card.disabled { opacity: .5; }
 
 .job-left { display: flex; gap: 12px; flex: 1; align-items: flex-start; }
 
 .job-dot {
-  width: 8px; height: 8px;
+  width: 7px; height: 7px;
   border-radius: 50%;
   margin-top: 5px;
   flex-shrink: 0;
+  transition: box-shadow .3s;
 }
-.job-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.job-dot.dim   { background: var(--text-dim); }
+.job-dot.green {
+  background: var(--green);
+  box-shadow: 0 0 0 2px rgba(52,211,153,0.15), 0 0 8px rgba(52,211,153,0.45);
+}
+.job-dot.dim { background: var(--text-dim); }
 
-.job-name { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; }
+.job-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+  letter-spacing: -0.1px;
+}
 
 .job-schedule {
   font-size: 11px;
   font-family: 'SF Mono', monospace;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 6px;
-  color: var(--accent);
+  background: rgba(124,111,255,0.1);
+  border: 1px solid rgba(124,111,255,0.18);
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--accent-2);
 }
 
 .job-prompt {
@@ -166,22 +226,30 @@
   display: flex;
   gap: 14px;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-dim);
 }
 
 .job-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 
 .job-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 7px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   padding: 5px 9px;
-  transition: background .12s, color .12s;
+  transition: background .12s, color .12s, border-color .12s;
   line-height: 1;
 }
-.job-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.job-btn.del:hover { border-color: rgba(239,68,68,.5); color: var(--red); }
+.job-btn:hover {
+  background: rgba(124,111,255,0.12);
+  color: var(--accent-2);
+  border-color: rgba(124,111,255,0.2);
+}
+.job-btn.del:hover {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.25);
+  color: var(--red);
+}
