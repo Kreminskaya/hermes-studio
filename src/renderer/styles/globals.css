@@ -1,0 +1,67 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-base:    #0d0f14;
+  --bg-panel:   #131720;
+  --bg-card:    #1a1f2e;
+  --bg-input:   #1e2433;
+  --bg-hover:   #252c3d;
+  --border:     #2a3045;
+  --border-dim: #1f2535;
+
+  --accent:       #6c63ff;
+  --accent-soft:  #3d3880;
+  --accent-glow:  rgba(108, 99, 255, 0.15);
+  --green:        #22c55e;
+  --yellow:       #eab308;
+  --red:          #ef4444;
+  --orange:       #f97316;
+
+  --text-primary:   #e8eaf0;
+  --text-secondary: #8b92a8;
+  --text-dim:       #4a5270;
+
+  --radius:  8px;
+  --radius-lg: 12px;
+  --sidebar-w: 220px;
+  --header-h: 48px;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* markdown in chat */
+.md-content p { margin-bottom: .5em; }
+.md-content code {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: .85em;
+}
+.md-content pre {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  overflow-x: auto;
+  margin: .5em 0;
+}
+.md-content pre code { background: none; border: none; padding: 0; }
+.md-content ul, .md-content ol { padding-left: 1.4em; margin-bottom: .5em; }
+.md-content h1,.md-content h2,.md-content h3 { margin: .8em 0 .3em; font-weight: 600; }

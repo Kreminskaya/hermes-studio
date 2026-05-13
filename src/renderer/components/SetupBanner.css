@@ -1,0 +1,58 @@
+.setup-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 16px;
+  padding: 16px;
+  background: rgba(108,99,255,.08);
+  border: 1px solid rgba(108,99,255,.3);
+  border-radius: var(--radius-lg);
+}
+
+.setup-icon { font-size: 22px; flex-shrink: 0; }
+
+.setup-body { flex: 1; }
+
+.setup-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.setup-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.setup-desc code {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: 'SF Mono', monospace;
+  font-size: .85em;
+}
+
+.setup-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--red);
+}
+
+.setup-btn {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity .15s;
+  white-space: nowrap;
+}
+
+.setup-btn:disabled { opacity: .6; cursor: not-allowed; }
+.setup-btn:hover:not(:disabled) { opacity: .85; }
