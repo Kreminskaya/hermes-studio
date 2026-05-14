@@ -7,3 +7,8 @@ out/
 npm-debug.log*
 .env.local
 release/
+
+# Large source files used during build
+resources/icon_source.png
+resources/icon_rounded.png
+resources/icon.svg

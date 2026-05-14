@@ -1,35 +1,19 @@
-// Dev runner: starts Vite, then Electron when ready
+// Dev runner: starts Vite on port 5200, then Electron
 const { spawn } = require('child_process')
-const { createServer } = require('net')
 
-function waitPort(port, timeout = 30000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now()
-    const check = () => {
-      const s = createServer()
-      s.once('error', () => {
-        // port is in use = Vite is ready
-        resolve()
-      })
-      s.once('listening', () => {
-        s.close()
-        if (Date.now() - start > timeout) reject(new Error('timeout'))
-        else setTimeout(check, 300)
-      })
-      s.listen(port, '127.0.0.1')
-    }
-    check()
-  })
-}
+const VITE_PORT = 5200
 
 async function main() {
-  const vite = spawn('npx', ['vite'], { stdio: 'inherit', shell: true })
+  // Pass port via CLI so it doesn't conflict with other Vite instances
+  const vite = spawn('npx', ['vite', '--port', String(VITE_PORT), '--strictPort'], {
+    stdio: 'inherit',
+    shell: true,
+  })
 
-  console.log('Waiting for Vite...')
-  await waitPort(5173)
-  console.log('Vite ready, launching Electron...')
+  console.log(`Waiting for Vite on port ${VITE_PORT}...`)
+  await new Promise(r => setTimeout(r, 3000))
+  console.log('Launching Electron...')
 
-  // Compile main process first
   spawn('npx', ['tsc', '-p', 'tsconfig.main.json', '--watch', '--preserveWatchOutput'], {
     stdio: 'inherit', shell: true
   })

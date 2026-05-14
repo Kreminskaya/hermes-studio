@@ -5,17 +5,8 @@
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
-
-  /* gradient from deep purple-indigo at top → near-black at bottom */
-  background: linear-gradient(
-    180deg,
-    #130e2e 0%,
-    #0f0d22 18%,
-    #0d1020 40%,
-    #0b0e1a 100%
-  );
-
-  border-right: 1px solid rgba(120, 100, 255, 0.12);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
 }
 
 /* aurora glow at top of sidebar */
@@ -26,7 +17,7 @@
   left: -20px;
   width: 180px;
   height: 180px;
-  background: radial-gradient(ellipse, rgba(124, 111, 255, 0.18) 0%, transparent 65%);
+  background: radial-gradient(ellipse, rgba(var(--accent-rgb), 0.18) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
@@ -39,7 +30,7 @@
   right: 0;
   width: 1px;
   height: 50%;
-  background: linear-gradient(180deg, rgba(124,111,255,0.3) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb),0.3) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -65,7 +56,7 @@
   font-size: 15px;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 0 16px rgba(124, 111, 255, 0.45), 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45), 0 2px 8px rgba(0,0,0,0.4);
   letter-spacing: -0.5px;
 }
 
@@ -96,11 +87,11 @@
 }
 .status-dot.green {
   background: var(--green);
-  box-shadow: 0 0 0 2px rgba(52,211,153,0.18), 0 0 8px rgba(52,211,153,0.5);
+  box-shadow: 0 0 0 2px rgba(var(--green-rgb),0.18), 0 0 8px rgba(var(--green-rgb),0.5);
 }
 .status-dot.red {
   background: var(--red);
-  box-shadow: 0 0 6px rgba(248,113,113,0.4);
+  box-shadow: 0 0 6px rgba(var(--red-rgb),0.4);
 }
 
 .status-label {
@@ -112,17 +103,16 @@
 .agent-badge {
   margin-left: auto;
   font-size: 10px;
-  background: rgba(124,111,255,0.15);
+  background: rgba(var(--accent-rgb),0.15);
   color: var(--accent);
   padding: 2px 8px;
   border-radius: 20px;
-  border: 1px solid rgba(124,111,255,0.2);
+  border: 1px solid rgba(var(--accent-rgb),0.2);
   font-weight: 500;
 }
 
 /* ─── Nav ──── */
 .sidebar-nav {
-  flex: 1;
   padding: 10px 8px;
   display: flex;
   flex-direction: column;
@@ -154,10 +144,10 @@
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(124,111,255,0.2) 0%, rgba(167,139,250,0.1) 100%);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),0.2) 0%, rgba(var(--accent-2-rgb),0.1) 100%);
   color: var(--accent-2);
   font-weight: 500;
-  border: 1px solid rgba(124,111,255,0.2);
+  border: 1px solid rgba(var(--accent-rgb),0.2);
 }
 
 /* left accent line on active item */
@@ -179,16 +169,108 @@
   flex-shrink: 0;
 }
 
-/* ─── Footer ──── */
-.sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.04);
+/* ─── Profiles ──── */
+.sidebar-profiles {
+  padding: 0 8px 10px;
   position: relative;
   z-index: 1;
 }
 
+.profiles-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 0 8px 6px;
+}
+
+.profile-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background .15s;
+}
+.profile-item:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.profile-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb),0.5);
+  flex-shrink: 0;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.profile-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-model {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-sessions {
+  font-size: 10px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-dim);
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.sidebar-spacer { flex: 1; }
+
+/* ─── Footer ──── */
+.sidebar-footer {
+  padding: 8px 8px 10px;
+  border-top: 1px solid var(--border-subtle);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-btn {
+  width: 100%;
+  border: 1px solid transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+.theme-badge {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.footer-info {
+  padding: 4px 11px 2px;
+}
+
 .footer-label {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-dim);
   letter-spacing: 0.02em;
 }

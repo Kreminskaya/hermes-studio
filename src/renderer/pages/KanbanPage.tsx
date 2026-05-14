@@ -1,154 +1,179 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import type { KanbanTask } from '../App'
 import './KanbanPage.css'
 
-interface KanbanCard {
-  id: string
-  title: string
-  status: 'todo' | 'in_progress' | 'done' | 'blocked'
-  agent?: string
-  model?: string
-  tokens?: number
+const STATUS_ORDER = ['todo', 'in_progress', 'done', 'blocked']
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  todo:        { label: 'To Do',       color: '#4a5270' },
+  in_progress: { label: 'In Progress', color: '#7c6fff' },
+  done:        { label: 'Done',        color: '#34d399' },
+  blocked:     { label: 'Blocked',     color: '#f87171' },
 }
 
-const STATUS_LABELS: Record<KanbanCard['status'], string> = {
-  todo: 'To Do',
-  in_progress: 'In Progress',
-  done: 'Done',
-  blocked: 'Blocked',
+function statusMeta(s: string) {
+  return STATUS_META[s] ?? { label: s.replace(/_/g, ' '), color: '#6b7280' }
 }
 
-const STATUS_COLORS: Record<KanbanCard['status'], string> = {
-  todo: '#4a5270',
-  in_progress: '#6c63ff',
-  done: '#22c55e',
-  blocked: '#ef4444',
+function fmtDuration(startSec: number | null, endSec: number | null): string {
+  if (!startSec) return ''
+  const end = endSec ?? Math.floor(Date.now() / 1000)
+  const sec = end - startSec
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) return `${Math.round(sec / 60)}m`
+  return `${(sec / 3600).toFixed(1)}h`
 }
-
-// Parse hermes kanban-status.txt (simple text format)
-function parseKanbanStatus(raw: string): KanbanCard[] {
-  if (!raw.trim()) return []
-  const cards: KanbanCard[] = []
-  const lines = raw.split('\n')
-  let current: Partial<KanbanCard> | null = null
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (!trimmed) {
-      if (current?.title) cards.push(current as KanbanCard)
-      current = null
-      continue
-    }
-
-    if (trimmed.startsWith('##') || trimmed.startsWith('**')) {
-      if (current?.title) cards.push(current as KanbanCard)
-      const title = trimmed.replace(/^[#*]+\s*/, '').trim()
-      const status: KanbanCard['status'] =
-        /done|complete/i.test(title) ? 'done' :
-        /block|error|fail/i.test(title) ? 'blocked' :
-        /progress|running|active|work/i.test(title) ? 'in_progress' : 'todo'
-      current = { id: `k-${Math.random().toString(36).slice(2)}`, title, status }
-    } else if (current) {
-      if (/agent:/i.test(trimmed)) current.agent = trimmed.replace(/agent:\s*/i, '').trim()
-      else if (/model:/i.test(trimmed)) current.model = trimmed.replace(/model:\s*/i, '').trim()
-      else if (/status.*in.progress/i.test(trimmed)) current.status = 'in_progress'
-      else if (/status.*done/i.test(trimmed)) current.status = 'done'
-      else if (/status.*block/i.test(trimmed)) current.status = 'blocked'
-    }
-  }
-  if (current?.title) cards.push(current as KanbanCard)
-
-  return cards.length > 0 ? cards : SAMPLE_CARDS
-}
-
-const SAMPLE_CARDS: KanbanCard[] = [
-  { id: 's1', title: 'Research phase', status: 'done', agent: 'Architect' },
-  { id: 's2', title: 'API integration', status: 'in_progress', agent: 'Coder', model: 'kimi-k2.6' },
-  { id: 's3', title: 'UI design', status: 'todo', agent: 'Junior' },
-  { id: 's4', title: 'Write tests', status: 'todo' },
-]
-
-const COLUMNS: KanbanCard['status'][] = ['todo', 'in_progress', 'done', 'blocked']
 
 export default function KanbanPage() {
-  const [cards, setCards] = useState<KanbanCard[]>(SAMPLE_CARDS)
-  const [rawStatus, setRawStatus] = useState('')
+  const [tasks, setTasks] = useState<KanbanTask[]>([])
+  const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
-    loadKanban()
-    const unsub = window.hermes?.onKanbanStatus((raw) => {
-      setRawStatus(raw)
-      setCards(parseKanbanStatus(raw))
-      setLastUpdate(new Date())
-    })
+    loadTasks()
+    const unsub = window.hermes?.onKanbanRefresh(loadTasks)
     return () => unsub?.()
   }, [])
 
-  async function loadKanban() {
-    const raw = await window.hermes?.kanbanStatus()
-    if (raw) {
-      setRawStatus(raw)
-      setCards(parseKanbanStatus(raw))
+  async function loadTasks() {
+    const data = await window.hermes?.kanbanTasks()
+    if (data) {
+      setTasks(data as KanbanTask[])
       setLastUpdate(new Date())
     }
+    setLoading(false)
   }
+
+  // Derive columns dynamically from whatever statuses exist in the data
+  const columns = useMemo(() => {
+    const found = [...new Set(tasks.map(t => t.status))]
+    const ordered = STATUS_ORDER.filter(s => found.includes(s))
+    const rest = found.filter(s => !STATUS_ORDER.includes(s)).sort()
+    return [...ordered, ...rest]
+  }, [tasks])
+
+  if (loading) {
+    return (
+      <div className="kanban-page">
+        <KanbanHeader onRefresh={loadTasks} lastUpdate={null} />
+        <div className="kanban-empty">
+          <div className="spinner" />
+          <span>Loading tasks…</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="kanban-page">
+        <KanbanHeader onRefresh={loadTasks} lastUpdate={lastUpdate} />
+        <div className="kanban-empty">
+          <span className="empty-icon">📋</span>
+          <span>No tasks yet</span>
+          <span className="empty-sub">Tasks appear here when Hermes agents start working</span>
+        </div>
+      </div>
+    )
+  }
+
+  const gridCols = Math.max(1, Math.min(columns.length, 5))
 
   return (
     <div className="kanban-page">
-      <div className="kanban-header">
-        <h2 className="kanban-title">Agent Kanban</h2>
-        <div className="kanban-meta">
-          {lastUpdate && (
-            <span className="kanban-updated">
-              Updated {lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-          <button className="refresh-btn" onClick={loadKanban} title="Refresh">↺</button>
-        </div>
-      </div>
-
-      <div className="kanban-board">
-        {COLUMNS.map(col => {
-          const colCards = cards.filter(c => c.status === col)
+      <KanbanHeader onRefresh={loadTasks} lastUpdate={lastUpdate} />
+      <div
+        className="kanban-board"
+        style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(200px, 1fr))` }}
+      >
+        {columns.map(status => {
+          const col = tasks.filter(t => t.status === status)
+          const meta = statusMeta(status)
           return (
-            <div key={col} className="kanban-col">
+            <div key={status} className="kanban-col">
               <div className="col-header">
-                <span
-                  className="col-dot"
-                  style={{ background: STATUS_COLORS[col] }}
-                />
-                <span className="col-label">{STATUS_LABELS[col]}</span>
-                <span className="col-count">{colCards.length}</span>
+                <span className="col-dot" style={{ background: meta.color }} />
+                <span className="col-label">{meta.label}</span>
+                <span className="col-count">{col.length}</span>
               </div>
-
               <div className="col-cards">
-                {colCards.map(card => (
-                  <div key={card.id} className={`kanban-card status-${card.status}`}>
-                    <div className="card-title">{card.title}</div>
-                    <div className="card-footer">
-                      {card.agent && (
-                        <span className="card-agent">{card.agent}</span>
-                      )}
-                      {card.model && (
-                        <span className="card-model">{card.model}</span>
-                      )}
-                    </div>
-                  </div>
+                {col.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    expanded={expanded === task.id}
+                    onToggle={() => setExpanded(prev => prev === task.id ? null : task.id)}
+                  />
                 ))}
-                {colCards.length === 0 && (
-                  <div className="col-empty">—</div>
-                )}
+                {col.length === 0 && <div className="col-empty">—</div>}
               </div>
             </div>
           )
         })}
       </div>
+    </div>
+  )
+}
 
-      {rawStatus && (
-        <details className="kanban-raw">
-          <summary>Raw kanban-status.txt</summary>
-          <pre>{rawStatus}</pre>
-        </details>
+function KanbanHeader({ onRefresh, lastUpdate }: { onRefresh: () => void; lastUpdate: Date | null }) {
+  return (
+    <div className="kanban-header">
+      <h2 className="kanban-title">Agent Kanban</h2>
+      <div className="kanban-meta">
+        {lastUpdate && (
+          <span className="kanban-updated">Updated {lastUpdate.toLocaleTimeString()}</span>
+        )}
+        <button className="refresh-btn" onClick={onRefresh} title="Refresh">↺</button>
+      </div>
+    </div>
+  )
+}
+
+function TaskCard({ task, expanded, onToggle }: {
+  task: KanbanTask
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const isRunning = task.run_status === 'running'
+  const duration = fmtDuration(task.run_started_at, task.run_ended_at)
+
+  return (
+    <div
+      className={`kanban-card status-${task.status}${expanded ? ' expanded' : ''}`}
+      onClick={onToggle}
+    >
+      <div className="card-title">{task.title}</div>
+
+      {expanded && task.body && (
+        <div className="card-body">{task.body}</div>
+      )}
+
+      <div className="card-footer">
+        {task.assignee && (
+          <span className="card-agent">{task.assignee}</span>
+        )}
+        {task.run_profile && (
+          <span className="card-model">{task.run_profile}</span>
+        )}
+        {task.outcome && (
+          <span className={`card-outcome outcome-${task.outcome}`}>{task.outcome}</span>
+        )}
+        {isRunning && (
+          <span className="card-running">
+            <span className="run-dot" />
+            {duration || 'running'}
+          </span>
+        )}
+        {!isRunning && duration && (
+          <span className="card-duration">{duration}</span>
+        )}
+      </div>
+
+      {task.consecutive_failures > 0 && (
+        <div className="card-failures">
+          {task.consecutive_failures} failure{task.consecutive_failures !== 1 ? 's' : ''}
+        </div>
       )}
     </div>
   )
