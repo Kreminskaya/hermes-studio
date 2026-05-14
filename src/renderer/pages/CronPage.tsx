@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react'
 import './CronPage.css'
 
+interface CronSchedule {
+  kind?: string
+  expr?: string
+  display?: string
+}
+
 interface CronJob {
   id: string
   name?: string
-  schedule: string
+  schedule: string | CronSchedule
   prompt?: string
   enabled?: boolean
   last_run?: string
   next_run?: string
+}
+
+function scheduleStr(s: string | CronSchedule | undefined): string {
+  if (!s) return ''
+  if (typeof s === 'string') return s
+  return s.display ?? s.expr ?? JSON.stringify(s)
 }
 
 export default function CronPage() {
@@ -23,13 +35,18 @@ export default function CronPage() {
   async function loadJobs() {
     setLoading(true)
     setError(null)
-    const res = await window.hermes?.api({ path: '/api/jobs' })
-    setLoading(false)
-    if (res?.ok) {
-      const data = res.data as any
-      setJobs(Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : [])
-    } else {
+    try {
+      const res = await window.hermes?.api({ path: '/api/jobs' })
+      if (res?.ok) {
+        const data = res.data as any
+        setJobs(Array.isArray(data) ? data : Array.isArray(data?.jobs) ? data.jobs : [])
+      } else {
+        setError('Cannot reach Hermes API. Make sure the API server is enabled.')
+      }
+    } catch (e) {
       setError('Cannot reach Hermes API. Make sure the API server is enabled.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -124,7 +141,7 @@ export default function CronPage() {
               <span className={`job-dot ${job.enabled !== false ? 'green' : 'dim'}`} />
               <div>
                 <div className="job-name">{job.name ?? job.id}</div>
-                <code className="job-schedule">{job.schedule}</code>
+                <code className="job-schedule">{scheduleStr(job.schedule)}</code>
                 {job.prompt && (
                   <div className="job-prompt">{job.prompt.slice(0, 80)}{job.prompt.length > 80 ? '…' : ''}</div>
                 )}

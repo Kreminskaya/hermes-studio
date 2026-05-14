@@ -1,0 +1,87 @@
+.launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  backdrop-filter: blur(8px);
+}
+
+.launch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 56px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+
+.launch-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 24px;
+}
+
+.launch-icon.starting {
+  background: rgba(var(--accent-rgb), 0.15);
+}
+
+.launch-icon.error {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.launch-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(var(--accent-rgb), 0.2);
+  border-top-color: rgba(var(--accent-rgb), 1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.launch-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.launch-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  min-height: 36px;
+}
+
+.launch-retry {
+  margin-top: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(var(--accent-rgb), 0.9);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.launch-retry:hover {
+  opacity: 0.85;
+}

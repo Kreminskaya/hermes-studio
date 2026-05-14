@@ -1,19 +1,36 @@
-import type { Page, GatewayState } from '../App'
+import type { Page, GatewayState, HermesProfile } from '../App'
+import type { Theme } from '../pages/SettingsPage'
 import './Sidebar.css'
 
 interface Props {
   page: Page
   onNavigate: (p: Page) => void
   gatewayState: GatewayState | null
+  profiles: HermesProfile[]
+  theme: Theme
 }
 
 const NAV: { id: Page; label: string; icon: string }[] = [
   { id: 'chat',   label: 'Chat',   icon: '💬' },
   { id: 'kanban', label: 'Kanban', icon: '📋' },
   { id: 'cron',   label: 'Cron',   icon: '⏰' },
+  { id: 'skills', label: 'Skills', icon: '✨' },
 ]
 
-export default function Sidebar({ page, onNavigate, gatewayState }: Props) {
+const THEME_ICONS: Record<Theme, string> = {
+  dark:  '🌑',
+  light: '☀️',
+  gray:  '🟢',
+}
+
+function shortModel(model: string): string {
+  // Trim long model strings to fit sidebar
+  if (model.length <= 18) return model
+  const parts = model.split('/')
+  return parts[parts.length - 1].slice(0, 18)
+}
+
+export default function Sidebar({ page, onNavigate, gatewayState, profiles, theme }: Props) {
   const running = gatewayState?.gateway_state === 'running'
   const agents  = gatewayState?.active_agents ?? 0
 
@@ -45,7 +62,35 @@ export default function Sidebar({ page, onNavigate, gatewayState }: Props) {
         ))}
       </nav>
 
+      {profiles.length > 0 && (
+        <div className="sidebar-profiles">
+          <div className="profiles-label">Profiles</div>
+          {profiles.map(p => (
+            <div key={p.name} className="profile-item">
+              <div className="profile-dot" />
+              <div className="profile-info">
+                <span className="profile-name">{p.name}</span>
+                <span className="profile-model" title={p.model}>{shortModel(p.model)}</span>
+              </div>
+              {p.sessionCount > 0 && (
+                <span className="profile-sessions">{p.sessionCount}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="sidebar-spacer" />
+
       <div className="sidebar-footer">
+        <button
+          className={`nav-item settings-btn ${page === 'settings' ? 'active' : ''}`}
+          onClick={() => onNavigate('settings')}
+        >
+          <span className="nav-icon">⚙️</span>
+          <span>Settings</span>
+          <span className="theme-badge">{THEME_ICONS[theme]}</span>
+        </button>
         <div className="footer-info">
           <span className="footer-label">Hermes v0.12</span>
         </div>

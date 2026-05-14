@@ -1,34 +1,58 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('hermes', {
-  // One-shot API call
+  // One-shot API call to Hermes REST
   api: (opts: { method?: string; path: string; body?: unknown; headers?: Record<string, string> }) =>
     ipcRenderer.invoke('hermes:api', opts),
 
-  // Start SSE stream, returns runId
+  // SSE streaming
   streamStart: (opts: { path: string; body?: unknown; headers?: Record<string, string> }) =>
     ipcRenderer.invoke('hermes:stream-start', opts),
-
-  // Subscribe to SSE chunks for a runId
-  onStream: (runId: string, cb: (event: { type: string; data?: string; error?: string }) => void) => {
-    const handler = (_: unknown, payload: { type: string; data?: string; error?: string }) => cb(payload)
-    ipcRenderer.on(`stream:${runId}`, handler)
-    return () => ipcRenderer.removeListener(`stream:${runId}`, handler)
+  onStream: (runId: string, cb: (e: { type: string; data?: string; error?: string }) => void) => {
+    const h = (_: unknown, p: { type: string; data?: string; error?: string }) => cb(p)
+    ipcRenderer.on(`stream:${runId}`, h)
+    return () => ipcRenderer.removeListener(`stream:${runId}`, h)
   },
 
-  // Read Hermes local state
+  // Gateway state
   gatewayState: () => ipcRenderer.invoke('hermes:gateway-state'),
-  kanbanStatus: () => ipcRenderer.invoke('hermes:kanban-status'),
   readEnv: () => ipcRenderer.invoke('hermes:read-env'),
   enableApiServer: (apiKey?: string) => ipcRenderer.invoke('hermes:enable-api-server', apiKey),
 
-  // Watch for file changes pushed from main
+  // Profiles
+  profiles: () => ipcRenderer.invoke('hermes:profiles'),
+
+  // Real sessions from state.db
+  sessions: (limit?: number) => ipcRenderer.invoke('hermes:sessions', limit),
+  sessionMessages: (sessionId: string) => ipcRenderer.invoke('hermes:session-messages', sessionId),
+
+  // Kanban from kanban.db
+  kanbanTasks: () => ipcRenderer.invoke('hermes:kanban-tasks'),
+  kanbanStats: () => ipcRenderer.invoke('hermes:kanban-stats'),
+
+  // Skills
+  skills: () => ipcRenderer.invoke('hermes:skills'),
+
+  // Hermes process control
+  checkRunning: () => ipcRenderer.invoke('hermes:check-running'),
+  restart: () => ipcRenderer.invoke('hermes:restart'),
+
+  // Push events from main
+  onLaunchStatus: (cb: (s: { status: string; detail?: string }) => void) => {
+    const h = (_: unknown, p: { status: string; detail?: string }) => cb(p)
+    ipcRenderer.on('hermes:launch-status', h)
+    return () => ipcRenderer.removeListener('hermes:launch-status', h)
+  },
   onGatewayState: (cb: (raw: string) => void) => {
-    ipcRenderer.on('gateway:state', (_, data) => cb(data))
+    ipcRenderer.on('gateway:state', (_, d) => cb(d))
     return () => ipcRenderer.removeAllListeners('gateway:state')
   },
-  onKanbanStatus: (cb: (raw: string) => void) => {
-    ipcRenderer.on('kanban:status', (_, data) => cb(data))
-    return () => ipcRenderer.removeAllListeners('kanban:status')
+  onKanbanRefresh: (cb: () => void) => {
+    ipcRenderer.on('kanban:refresh', cb)
+    return () => ipcRenderer.removeAllListeners('kanban:refresh')
+  },
+  onSessionsRefresh: (cb: () => void) => {
+    ipcRenderer.on('sessions:refresh', cb)
+    return () => ipcRenderer.removeAllListeners('sessions:refresh')
   },
 })

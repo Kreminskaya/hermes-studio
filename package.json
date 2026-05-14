@@ -2,12 +2,12 @@
   "name": "hermes-studio",
   "version": "0.1.0",
   "description": "Desktop GUI for Hermes Agent",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/index.js",
   "scripts": {
     "dev": "node scripts/dev.js",
     "vite": "vite",
     "build": "tsc -p tsconfig.main.json && vite build && electron-builder",
-    "preview": "electron dist-electron/main.js"
+    "preview": "electron dist-electron/index.js"
   },
   "dependencies": {
     "electron-updater": "^6.3.4",
@@ -28,8 +28,10 @@
   "build": {
     "appId": "com.hermes.studio",
     "productName": "Hermes Studio",
+    "icon": "resources/icon.icns",
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "icon": "resources/icon.icns"
     },
     "files": [
       "dist/**/*",

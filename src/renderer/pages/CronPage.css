@@ -12,15 +12,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 15px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
   position: relative;
-
-  background: linear-gradient(
-    180deg,
-    rgba(18, 12, 42, 0.8) 0%,
-    rgba(10, 8, 22, 0.4) 100%
-  );
+  background: var(--panel-header-bg);
 }
 
 .cron-header::before {
@@ -30,8 +25,8 @@
   height: 1px;
   background: linear-gradient(90deg,
     transparent,
-    rgba(124,111,255,0.45) 30%,
-    rgba(167,139,250,0.45) 65%,
+    rgba(var(--accent-rgb),0.45) 30%,
+    rgba(var(--accent-2-rgb),0.45) 65%,
     transparent
   );
 }
@@ -57,7 +52,7 @@
   line-height: 1;
 }
 .refresh-btn:hover {
-  background: rgba(124,111,255,0.12);
+  background: rgba(var(--accent-rgb),0.12);
   color: var(--accent-2);
 }
 
@@ -71,10 +66,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity .15s, box-shadow .15s;
-  box-shadow: 0 4px 14px rgba(124,111,255,0.3);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.3);
   letter-spacing: 0.01em;
 }
-.add-btn:hover { opacity: .88; box-shadow: 0 4px 20px rgba(124,111,255,0.5); }
+.add-btn:hover { opacity: .88; box-shadow: 0 4px 20px rgba(var(--accent-rgb),0.5); }
 
 /* ─── Form ─── */
 .cron-form {
@@ -84,7 +79,7 @@
   flex-direction: column;
   gap: 12px;
   flex-shrink: 0;
-  background: rgba(124,111,255,0.04);
+  background: rgba(var(--accent-rgb),0.04);
 }
 
 .form-row { display: flex; flex-direction: column; gap: 5px; }
@@ -108,8 +103,8 @@
   transition: border-color .15s, box-shadow .15s;
 }
 .form-input:focus {
-  border-color: rgba(124,111,255,0.4);
-  box-shadow: 0 0 0 3px rgba(124,111,255,0.08);
+  border-color: rgba(var(--accent-rgb),0.4);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb),0.08);
 }
 .form-textarea { resize: vertical; }
 .form-hint { font-size: 11px; color: var(--text-dim); }
@@ -125,16 +120,16 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity .15s, box-shadow .15s;
-  box-shadow: 0 4px 14px rgba(124,111,255,0.28);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28);
 }
 .save-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-.save-btn:hover:not(:disabled) { opacity: .88; box-shadow: 0 4px 22px rgba(124,111,255,0.5); }
+.save-btn:hover:not(:disabled) { opacity: .88; box-shadow: 0 4px 22px rgba(var(--accent-rgb),0.5); }
 
 .cron-error {
   margin: 16px 20px;
   padding: 13px 16px;
-  background: rgba(248,113,113,0.07);
-  border: 1px solid rgba(248,113,113,0.2);
+  background: rgba(var(--red-rgb),0.07);
+  border: 1px solid rgba(var(--red-rgb),0.2);
   border-radius: var(--radius);
   font-size: 13px;
   color: var(--red);
@@ -177,8 +172,8 @@
   border: 1px solid rgba(255,255,255,0.06);
 }
 .job-card:hover {
-  background: rgba(124,111,255,0.04);
-  border-color: rgba(124,111,255,0.18);
+  background: rgba(var(--accent-rgb),0.04);
+  border-color: rgba(var(--accent-rgb),0.18);
 }
 .job-card.disabled { opacity: .5; }
 
@@ -193,7 +188,7 @@
 }
 .job-dot.green {
   background: var(--green);
-  box-shadow: 0 0 0 2px rgba(52,211,153,0.15), 0 0 8px rgba(52,211,153,0.45);
+  box-shadow: 0 0 0 2px rgba(var(--green-rgb),0.15), 0 0 8px rgba(var(--green-rgb),0.45);
 }
 .job-dot.dim { background: var(--text-dim); }
 
@@ -208,8 +203,8 @@
 .job-schedule {
   font-size: 11px;
   font-family: 'SF Mono', monospace;
-  background: rgba(124,111,255,0.1);
-  border: 1px solid rgba(124,111,255,0.18);
+  background: rgba(var(--accent-rgb),0.1);
+  border: 1px solid rgba(var(--accent-rgb),0.18);
   border-radius: 5px;
   padding: 1px 7px;
   color: var(--accent-2);
@@ -244,12 +239,12 @@
   line-height: 1;
 }
 .job-btn:hover {
-  background: rgba(124,111,255,0.12);
+  background: rgba(var(--accent-rgb),0.12);
   color: var(--accent-2);
-  border-color: rgba(124,111,255,0.2);
+  border-color: rgba(var(--accent-rgb),0.2);
 }
 .job-btn.del:hover {
-  background: rgba(248,113,113,0.1);
-  border-color: rgba(248,113,113,0.25);
+  background: rgba(var(--red-rgb),0.1);
+  border-color: rgba(var(--red-rgb),0.25);
   color: var(--red);
 }
