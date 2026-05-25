@@ -1,9 +1,12 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
+import { join, extname, basename } from 'path'
 import { existsSync, readFileSync, writeFileSync, watchFile, readdirSync, statSync, lstatSync } from 'fs'
 import { homedir } from 'os'
 import { execSync, spawn } from 'child_process'
 import * as http from 'http'
+
+// Active SSE streams — keyed by runId so we can abort them
+const activeStreams = new Map<string, http.ClientRequest>()
 
 const HERMES_HOME = join(homedir(), '.hermes')
 const HERMES_ENV  = join(HERMES_HOME, '.env')
@@ -32,7 +35,9 @@ function safeSend(channel: string, ...args: unknown[]) {
 function sqliteQuery<T = unknown>(dbPath: string, sql: string): T[] {
   try {
     const escaped = sql.replace(/"/g, '\\"')
-    const out = execSync(`sqlite3 -json "${dbPath}" "${escaped}"`, {
+    // Use full path so the query works when launched from Launchpad/Finder
+    const sqlite3 = ['/usr/bin/sqlite3', '/opt/homebrew/bin/sqlite3'].find(p => existsSync(p)) ?? 'sqlite3'
+    const out = execSync(`"${sqlite3}" -json "${dbPath}" "${escaped}"`, {
       timeout: 5000,
       encoding: 'utf8',
     })
@@ -396,7 +401,7 @@ ipcMain.handle('hermes:session-messages', (_e, sessionId: string) => {
 // ─── IPC: real kanban tasks from kanban.db ─────────────────────────────────────
 
 ipcMain.handle('hermes:kanban-tasks', () => {
-  const tasks = sqliteQuery<Record<string, unknown>>(KANBAN_DB, [
+  const cols = [
     'SELECT t.id, t.title, t.body, t.assignee, t.status, t.priority,',
     '       t.created_at, t.started_at, t.completed_at, t.worker_pid,',
     '       t.consecutive_failures, t.last_failure_error,',
@@ -404,10 +409,14 @@ ipcMain.handle('hermes:kanban-tasks', () => {
     '       r.started_at as run_started_at, r.ended_at as run_ended_at',
     'FROM tasks t',
     'LEFT JOIN task_runs r ON r.id = t.current_run_id',
-    'ORDER BY COALESCE(t.started_at, t.created_at) DESC',
-    'LIMIT 100',
-  ].join(' '))
-  return tasks
+  ].join(' ')
+
+  const active   = sqliteQuery<Record<string, unknown>>(KANBAN_DB,
+    `${cols} WHERE t.status != 'archived' ORDER BY COALESCE(t.started_at, t.created_at) DESC LIMIT 100`)
+  const archived = sqliteQuery<Record<string, unknown>>(KANBAN_DB,
+    `${cols} WHERE t.status = 'archived' ORDER BY COALESCE(t.started_at, t.created_at) DESC LIMIT 5`)
+
+  return [...active, ...archived]
 })
 
 ipcMain.handle('hermes:kanban-stats', () => {
@@ -464,13 +473,63 @@ ipcMain.handle('hermes:stream-start', async (_e, { path, body, headers = {} }) =
       safeSend(`stream:${runId}`, { type: 'chunk', data: chunk })
     })
     res.on('end', () => {
+      activeStreams.delete(runId)
       safeSend(`stream:${runId}`, { type: 'end' })
     })
   })
   req.on('error', e => {
-    safeSend(`stream:${runId}`, { type: 'error', error: e.message })
+    activeStreams.delete(runId)
+    // If destroyed intentionally — send 'end' not 'error' so UI cleans up gracefully
+    if ((e as any).code === 'ECONNRESET' || (e as any).destroyed) {
+      safeSend(`stream:${runId}`, { type: 'end' })
+    } else {
+      safeSend(`stream:${runId}`, { type: 'error', error: e.message })
+    }
   })
   if (body) req.write(JSON.stringify(body))
   req.end()
+  activeStreams.set(runId, req)
   return runId
+})
+
+ipcMain.handle('hermes:stream-stop', (_e, runId: string) => {
+  const req = activeStreams.get(runId)
+  if (req) { req.destroy(); activeStreams.delete(runId) }
+})
+
+// File picker + reader
+const IMAGE_EXTS  = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
+const TEXT_EXTS   = new Set(['.txt', '.md', '.json', '.csv', '.py', '.ts', '.tsx', '.js', '.jsx', '.yaml', '.yml'])
+
+ipcMain.handle('hermes:show-file-picker', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
+      { name: 'Text & Code', extensions: ['txt', 'md', 'json', 'csv', 'py', 'ts', 'tsx', 'js', 'yaml', 'yml'] },
+      { name: 'PDF', extensions: ['pdf'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  const filePath = result.filePaths[0]
+  const ext = extname(filePath).toLowerCase()
+  const name = basename(filePath)
+
+  if (IMAGE_EXTS.has(ext)) {
+    const data = readFileSync(filePath).toString('base64')
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
+               : ext === '.png' ? 'image/png'
+               : ext === '.gif' ? 'image/gif'
+               : 'image/webp'
+    return { type: 'image', name, mime, data, path: filePath }
+  }
+
+  if (TEXT_EXTS.has(ext)) {
+    const data = readFileSync(filePath, 'utf8')
+    return { type: 'text', name, mime: 'text/plain', data, path: filePath }
+  }
+
+  // PDF и прочие — возвращаем путь, пусть модель сама разберётся
+  return { type: 'file', name, mime: 'application/octet-stream', data: filePath, path: filePath }
 })

@@ -46,6 +46,7 @@
   margin-bottom: 2px;
   transition: background .14s;
   border: 1px solid transparent;
+  position: relative;
 }
 .session-item:hover { background: rgba(255,255,255,0.04); }
 .session-item.active {
@@ -53,14 +54,69 @@
   border-color: rgba(var(--accent-rgb),0.18);
 }
 
+.session-title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Green dot — last active session */
+.session-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  box-shadow: 0 0 5px rgba(var(--green-rgb), 0.6);
+}
+
 .session-title {
-  display: block;
   font-size: 12px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 155px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Pin button */
+.session-pin-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity .15s, transform .15s;
+  flex-shrink: 0;
+  filter: grayscale(1);
+}
+.session-item:hover .session-pin-btn { opacity: 0.55; }
+.session-pin-btn:hover { opacity: 1 !important; transform: scale(1.15); filter: none; }
+.session-pin-btn.is-pinned {
+  opacity: 0.8;
+  filter: none;
+}
+.session-item:hover .session-pin-btn.is-pinned { opacity: 1; }
+
+/* Pinned section label */
+.session-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px 3px;
+}
+
+/* Divider between pinned and regular */
+.session-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 10px 6px;
 }
 
 .session-meta {
@@ -236,6 +292,15 @@
   border-color: rgba(var(--green-rgb),0.18);
 }
 
+.msg-image {
+  max-width: 320px;
+  max-height: 260px;
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  display: block;
+  object-fit: contain;
+}
+
 .msg-meta {
   font-size: 10px;
   color: var(--text-dim);
@@ -322,13 +387,109 @@
 /* ─── Input ─── */
 .input-area {
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 14px 18px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 18px 14px;
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
   background: var(--chat-input-bg);
 }
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Attachments preview strip */
+.attachments-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.attach-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 180px;
+}
+
+.attach-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.attach-icon { font-size: 14px; flex-shrink: 0; }
+
+.attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.attach-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 1px;
+  flex-shrink: 0;
+}
+.attach-remove:hover { color: var(--red); }
+
+/* Attach button */
+.attach-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: background .15s, border-color .15s;
+}
+.attach-btn:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+.attach-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Stop button */
+.stop-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--red, #f87171);
+  box-shadow: 0 4px 14px rgba(248,113,113,0.4);
+  transition: opacity .15s, transform .12s;
+}
+.stop-btn:hover { opacity: .85; transform: scale(1.06); }
 
 .chat-input {
   flex: 1;

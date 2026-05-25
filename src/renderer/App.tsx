@@ -129,12 +129,12 @@ export default function App() {
           {apiReady === false && (
             <SetupBanner onEnabled={() => { setApiReady(true); checkApiReady() }} />
           )}
-          <PageErrorBoundary key={page}>
-            {page === 'chat'     && <ChatPage apiReady={apiReady === true} />}
-            {page === 'kanban'   && <KanbanPage />}
-            {page === 'cron'     && <CronPage />}
-            {page === 'skills'   && <SkillsPage />}
-            {page === 'settings' && <SettingsPage theme={theme} onTheme={setTheme} />}
+          <PageErrorBoundary>
+            <div style={{ display: page === 'chat'     ? 'contents' : 'none' }}><ChatPage apiReady={apiReady === true} /></div>
+            <div style={{ display: page === 'kanban'   ? 'contents' : 'none' }}><KanbanPage /></div>
+            <div style={{ display: page === 'cron'     ? 'contents' : 'none' }}><CronPage /></div>
+            <div style={{ display: page === 'skills'   ? 'contents' : 'none' }}><SkillsPage /></div>
+            <div style={{ display: page === 'settings' ? 'contents' : 'none' }}><SettingsPage theme={theme} onTheme={setTheme} /></div>
           </PageErrorBoundary>
         </main>
       </div>
@@ -148,7 +148,9 @@ declare global {
     hermes: {
       api:            (opts: { method?: string; path: string; body?: unknown; headers?: Record<string, string> }) => Promise<{ ok: boolean; status?: number; data?: unknown; error?: string }>
       streamStart:    (opts: { path: string; body?: unknown; headers?: Record<string, string> }) => Promise<string>
+      streamStop:     (runId: string) => Promise<void>
       onStream:       (runId: string, cb: (e: { type: string; data?: string; error?: string }) => void) => () => void
+      showFilePicker: () => Promise<{ type: string; name: string; mime: string; data: string; path: string } | null>
       gatewayState:   () => Promise<GatewayState | null>
       readEnv:        () => Promise<Record<string, string>>
       enableApiServer:(apiKey?: string) => Promise<{ ok: boolean; error?: string }>
