@@ -1,32 +1,67 @@
+<div align="center">
+
 # Hermes Studio
 
-A native macOS desktop client for the Hermes AI agent framework. Built with Electron + React, it wraps Hermes's REST and SSE APIs into a clean UI — no terminal required after first setup.
+**A native macOS desktop client for the [Hermes](https://github.com/nikvdp/hermes) AI agent framework.**
 
-![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-black)
-![Electron](https://img.shields.io/badge/electron-35-blue)
-![React](https://img.shields.io/badge/react-19-61dafb)
+Built with Electron + React. Turns Hermes into a real desktop app — no terminal required.
+
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black?style=flat-square)
+![Electron](https://img.shields.io/badge/Electron-35-47848F?style=flat-square&logo=electron)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+
+<!-- TODO: Add screenshot or GIF here -->
+
+</div>
 
 ---
 
-## What it does
+## What is this?
 
-| Tab | Description |
-|-----|-------------|
-| **Chat** | Streaming chat with Hermes agents. Shows live tool progress with the agent's own emoji indicators. Session history in the sidebar. |
-| **Kanban** | Real-time task board pulled from Hermes's `kanban.db`. Shows task status, assignee, run profiles, and cost. |
-| **Cron** | Browse, create, enable/disable, and trigger cron jobs via Hermes API. |
-| **Skills** | Visual card grid of all installed skills from `~/.hermes/skills/`. |
-| **Settings** | Theme switcher (Dark / Light / Lime). |
+Hermes is a powerful AI agent runtime — but it lives in the terminal. Hermes Studio wraps it in a clean, native macOS GUI with real-time streaming, a visual Kanban board for agent tasks, cron job management, and more.
+
+You get the full power of Hermes agents with the comfort of a proper desktop app.
+
+---
+
+## Features
+
+### 💬 Chat
+- Streaming responses with live tool-progress indicators
+- Attach images and files directly in the chat
+- **Stop button** — interrupt the agent mid-response at any time
+- Sessions sidebar with pinned chats and last-active indicator
+- Auto-names new chats from your first message
+- Full message history preserved when switching tabs
+
+### 📋 Kanban
+- Real-time task board pulled directly from Hermes's `kanban.db`
+- Shows task status, assignee, run profile, and duration
+- Active tasks show a live running indicator
+- One-click refresh
+
+### ⏰ Cron
+- Browse, create, enable/disable, and trigger cron jobs
+- Human-readable schedule display
+- Manual trigger button per job
+
+### 📚 Skills
+- Visual card grid of all installed Hermes skills
+- Grouped by category with description, tags, and version
+
+### ⚙️ Settings
+- Three themes: **Dark**, **Light**, **Lime** — switch without restart
 
 ---
 
 ## Requirements
 
-- **macOS** (Apple Silicon, macOS 13+)
-- **Hermes** installed and configured on the same machine
-- **Node.js 18+** only if building from source
+- **macOS** with Apple Silicon (M1 / M2 / M3 / M4)
+- **macOS 13 Ventura** or later
+- **[Hermes](https://github.com/nikvdp/hermes)** installed and configured
 
-Hermes Studio auto-launches Hermes on startup — you don't need to run it manually.
+> Hermes Studio auto-launches Hermes on startup. You don't need to run it manually.
 
 ---
 
@@ -39,142 +74,148 @@ Download `Hermes Studio-x.x.x-arm64.dmg` from [Releases](../../releases), open i
 ### Build from source
 
 ```bash
-git clone https://github.com/your-org/hermes-studio.git
+git clone https://github.com/YOUR_USERNAME/hermes-studio.git
 cd hermes-studio
 npm install
 npm run build
-# → dist/mac-arm64/Hermes Studio.app
+```
+
+Then copy to Applications:
+```bash
+cp -R "dist/mac-arm64/Hermes Studio.app" /Applications/
 ```
 
 For development with hot reload:
-
 ```bash
 npm run dev
 ```
 
 ---
 
-## How it connects to Hermes
+## Hermes Setup
 
-### Auto-launch
+Hermes Studio needs Hermes's API server enabled. On first launch, if it's not running, a setup banner appears with a one-click fix.
 
-On startup, Hermes Studio:
+To enable manually, add this to `~/.hermes/.env`:
+```
+API_SERVER_ENABLED=true
+API_SERVER_PORT=8642
+```
 
-1. Reads `~/.hermes/gateway_state.json` to check if Hermes is already running
-2. If not — finds the `hermes` binary via `which hermes` and runs `hermes start`
-3. Polls until `gateway_state` = `"running"`, then loads the UI
-
-> **Why `gateway_state.json` and not a port check?**  
-> Hermes's gateway can be running while the API server is disabled. Checking the JSON file is the only reliable source of truth.
-
-### API server
-
-Hermes needs its API server enabled (default port `8642`). If it's off, a banner appears with a one-click fix that:
-
-1. Writes `API_SERVER_ENABLED=true` to `~/.hermes/.env`
-2. Restarts Hermes
-3. Polls `/health` until the API is up
-4. Dismisses itself automatically
+Then restart Hermes.
 
 ---
 
-## Hermes quirks — documented fixes
+## Agent Profiles
 
-These are real behavioral differences in Hermes that required workarounds in the client. If you're building another Hermes client or connecting an agent to this codebase, these may save you hours.
+Hermes Studio works with standard Hermes profiles at `~/.hermes/profiles/`. A few profile configurations that work well:
+
+**Orchestrator** (the `default` profile) — routes tasks, manages Kanban:
+```yaml
+toolsets:
+  - kanban
+agent:
+  reasoning_effort: high
+```
+
+**Architect** — writes code and documents:
+```yaml
+toolsets:
+  - web
+  - browser
+  - file
+  - terminal
+  - memory
+  - skills
+agent:
+  max_turns: 40
+```
+
+**Researcher** — deep web research:
+```yaml
+toolsets:
+  - web
+  - browser
+  - file
+  - memory
+agent:
+  max_turns: 40
+  reasoning_effort: max
+  system_prompt: |
+    Always run `date` in terminal first to get the real current date.
+```
+
+---
+
+## Hermes Quirks — Documented Fixes
+
+Real behavioral differences in Hermes that required workarounds in the client. Useful if you're building another Hermes client.
 
 ### 1. Cron `schedule` is an object, not a string
 
 `GET /api/jobs` returns each job's schedule as:
-
 ```json
 { "kind": "cron", "expr": "0 9 * * *", "display": "Every day at 9am" }
 ```
+Rendering it directly in React crashes with error #31. **Fix:** extract `display → expr → JSON.stringify` before rendering.
 
-Not a plain string. Rendering it directly in React crashes with error #31 ("Objects are not valid as a React child").
+### 2. Custom SSE event types
 
-**Fix:** extract `display → expr → JSON.stringify` before rendering. See `scheduleStr()` in `CronPage.tsx`.
+During agent runs, Hermes emits `event: hermes.tool.progress` lines alongside standard chunks. Standard SSE parsers ignore the `event:` line entirely. **Fix:** track a `currentEvent` variable manually in the SSE loop and branch on it.
 
----
+### 3. Session ID in headers causes empty responses
 
-### 2. Streaming tool progress events
-
-During agent runs, Hermes emits custom SSE events alongside standard OpenAI-compatible chunks:
-
-```
-event: hermes.tool.progress
-data: {"emoji": "🔍", "tool": "web_search", "label": "Searching...", "status": "running"}
-```
-
-Standard SSE parsers ignore the `event:` line entirely. You have to track it manually.
-
-**Fix:** maintain a `currentEvent` variable in the SSE loop. When a line starts with `event: `, store it and skip to the next line. When a `data: ` line follows, branch on `currentEvent === 'hermes.tool.progress'` before trying to parse it as an OpenAI chunk. See `ChatPage.tsx`.
-
----
-
-### 3. Sending a session ID causes empty responses
-
-Passing `X-Hermes-Session-Id` with an existing session ID causes Hermes to load history from its database **and** receive it again in the `messages` array — the duplicate context produces an empty or broken response.
-
-**Fix:** do not send `X-Hermes-Session-Id`. Pass the full message history in the `messages` body on every request. Hermes creates a new session per exchange; the UI auto-detects and switches to it after each response.
-
----
+Passing `X-Hermes-Session-Id` with an existing ID causes Hermes to load history from its database and also receive it in the `messages` array — the duplicate produces an empty or broken response. **Fix:** never send `X-Hermes-Session-Id`. Pass the full message history in the request body every time.
 
 ### 4. Fake session IDs cause multi-minute delays
 
-Sending a randomly generated client-side ID as `X-Hermes-Session-Id` causes Hermes to spend several minutes trying to resolve it against its database before giving up.
+A randomly generated client-side ID sent as `X-Hermes-Session-Id` triggers a database lookup that blocks for several minutes. **Fix:** never send session IDs you didn't receive directly from the Hermes API.
 
-**Fix:** never send session IDs you didn't receive directly from Hermes's API.
+### 5. API sessions don't get auto-titled
 
----
+Sessions created via the REST API never receive auto-generated titles — only CLI sessions do. **Fix:** store the first user message as a local title in `localStorage`, keyed by session ID.
 
-### 5. Profile symlinks create duplicate entries in the sidebar
+### 6. Profile symlinks create duplicate sidebar entries
 
-`~/.hermes/profiles/` may contain symlinks (e.g. `defoult → default`) left by Hermes during migrations. `fs.readdirSync` follows them, making the same profile appear twice in the list.
+`~/.hermes/profiles/` may contain symlinks left by migrations. `readdirSync` follows them and duplicates profiles in the list. **Fix:** filter with `lstatSync().isSymbolicLink()`.
 
-**Fix:** filter with `lstatSync().isSymbolicLink()` before listing profiles. See the `hermes:profiles` IPC handler in `index.ts`.
+### 7. SQLite binary path in packaged app
 
----
-
-### 6. "Object has been destroyed" errors flooding the console
-
-Electron's `webContents.send()` throws if called after the window is closed — this can happen inside file watcher callbacks that fire during shutdown.
-
-**Fix:** wrap all `webContents.send()` calls in a `safeSend()` helper that guards with `!mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()`. See `index.ts`.
+When launched from Launchpad or Finder, the app's `PATH` may not include Homebrew. **Fix:** resolve the `sqlite3` binary path explicitly — `/usr/bin/sqlite3` first, Homebrew as fallback.
 
 ---
 
-## Key file paths
+## Key File Paths
 
 ```
 ~/.hermes/
-├── .env                    # API_SERVER_ENABLED, API_SERVER_PORT, API_SERVER_KEY, etc.
-├── gateway_state.json      # { "gateway_state": "running", "pid": 12345, "active_agents": 2 }
-├── state.db                # SQLite: sessions + messages (global)
+├── .env                    # API_SERVER_ENABLED, API_SERVER_PORT, API_SERVER_KEY
+├── gateway_state.json      # { "gateway_state": "running", "pid": 12345 }
+├── state.db                # SQLite: sessions + messages
 ├── kanban.db               # SQLite: tasks + task_runs
 ├── profiles/
 │   └── <name>/
-│       ├── config.yaml     # Model config — grep for "default:" to get active model name
-│       └── state.db        # Per-profile sessions
+│       └── config.yaml     # Model, toolsets, agent settings per profile
 └── skills/
     └── <category>/
         └── <name>/
-            └── SKILL.md    # YAML frontmatter: name, description, tags, version
+            └── SKILL.md    # Skill definition with YAML frontmatter
 ```
 
 ---
 
-## Project structure
+## Project Structure
 
 ```
 src/
 ├── main/
-│   ├── index.ts            # Electron main: IPC handlers, Hermes process mgmt, SQLite queries
+│   ├── index.ts            # Electron main: IPC handlers, Hermes process mgmt, SQLite
 │   └── preload.ts          # contextBridge — exposes window.hermes API to renderer
 └── renderer/
-    ├── App.tsx             # Root: page routing, launch overlay, global error boundary
+    ├── App.tsx             # Root: routing, launch overlay, global error boundary
     ├── pages/
-    │   ├── ChatPage.tsx    # Chat UI, SSE streaming, tool progress, session management
-    │   ├── KanbanPage.tsx  # Task board with live stats
+    │   ├── ChatPage.tsx    # Chat UI, SSE streaming, file attachments, session sidebar
+    │   ├── KanbanPage.tsx  # Real-time task board
     │   ├── CronPage.tsx    # Cron job CRUD
     │   ├── SkillsPage.tsx  # Skills card grid
     │   └── SettingsPage.tsx
@@ -184,38 +225,30 @@ src/
     │   ├── SetupBanner.tsx  # API server enable flow
     │   └── LaunchOverlay.tsx
     ├── hooks/
-    │   └── useSession.ts    # Sessions polling + push refresh subscription
+    │   └── useSession.ts   # Sessions polling + push refresh
     └── styles/
-        └── globals.css      # All CSS custom properties + three theme definitions
+        └── globals.css     # All CSS custom properties + three theme definitions
 resources/
-└── icon.icns                # macOS app icon
+└── icon.icns
 ```
 
 ---
 
 ## Themes
 
-Three themes, switchable in Settings without restart.
-
 | Theme | Accent | Background |
 |-------|--------|------------|
-| Dark  | Purple/blue | `#10111a` |
+| Dark  | Purple / blue | `#10111a` |
 | Light | Purple | `#f0eef8` |
-| Lime  | Green | `#1a1a1d` |
+| Lime  | Lime green | `#1a1a1d` |
 
-All colors are CSS custom properties in `globals.css` — adding a new theme is a single `[data-theme="name"]` block.
+All colors are CSS custom properties — adding a new theme is a single `[data-theme="name"]` block in `globals.css`.
 
 ---
 
-## Using this README with an AI agent
+## Contributing
 
-This document is intentionally structured for machine readability. If you're using an AI agent to set up, debug, or extend Hermes Studio:
-
-- **"Key file paths"** — complete Hermes data directory layout
-- **"Hermes quirks"** — each entry is a self-contained problem description + exact fix location
-- **"Project structure"** — maps every feature to its source file
-- The IPC bridge is in `preload.ts`; every `window.hermes.*` call maps 1:1 to an `ipcMain.handle('hermes:*')` handler in `index.ts`
-- CSS variables for all themes are in one place: `src/renderer/styles/globals.css`
+Issues and PRs are welcome. Please test any UI changes across all three themes.
 
 ---
 

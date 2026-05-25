@@ -2,13 +2,24 @@ node_modules/
 dist/
 dist-electron/
 out/
+release/
+
+# macOS
 .DS_Store
 *.log
 npm-debug.log*
-.env.local
-release/
 
-# Large source files used during build
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Large source files used during build (not needed in repo)
 resources/icon_source.png
 resources/icon_rounded.png
 resources/icon.svg

@@ -3,10 +3,19 @@ import { useSessions } from '../hooks/useSession'
 import type { HermesSession, HermesMessage } from '../App'
 import './ChatPage.css'
 
+interface Attachment {
+  type: 'image' | 'text' | 'file'
+  name: string
+  mime: string
+  data: string
+  path: string
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
   tokens?: number
+  attachments?: Attachment[]
 }
 
 interface Props {
@@ -66,7 +75,32 @@ export default function ChatPage({ apiReady }: Props) {
   const [elapsed, setElapsed] = useState(0)
   const [models, setModels] = useState<string[]>(['hermes-agent'])
   const [model, setModel] = useState('hermes-agent')
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const activeRunIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Local titles for API sessions (Hermes doesn't generate titles for API sessions)
+  const [localTitles, setLocalTitles] = useState<Record<string, string>>(
+    () => JSON.parse(localStorage.getItem('hermes_local_titles') ?? '{}')
+  )
+
+  function saveLocalTitle(sid: string, text: string) {
+    const title = text.trim().slice(0, 48) + (text.trim().length > 48 ? '…' : '')
+    setLocalTitles(prev => {
+      const next = { ...prev, [sid]: title }
+      localStorage.setItem('hermes_local_titles', JSON.stringify(next))
+      return next
+    })
+  }
+
+  // ID of the session that last received a response (green dot)
+  const [lastActiveId, setLastActiveId] = useState<string | null>(
+    () => localStorage.getItem('hermes_last_active_id')
+  )
+  // Set of pinned session IDs
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(
+    () => new Set(JSON.parse(localStorage.getItem('hermes_pinned_ids') ?? '[]'))
+  )
 
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -86,6 +120,22 @@ export default function ChatPage({ apiReady }: Props) {
       return next
     })
     setCurrentId(newest.id)
+    // migrate local title from placeholder to real session ID
+    setLocalTitles(prev => {
+      if (!prev[localId]) return prev
+      const next = { ...prev, [newest.id]: prev[localId] }
+      delete next[localId]
+      localStorage.setItem('hermes_local_titles', JSON.stringify(next))
+      return next
+    })
+    // also migrate lastActiveId if it was pointing to the local placeholder
+    setLastActiveId(prev => {
+      if (prev === localId) {
+        localStorage.setItem('hermes_last_active_id', newest.id)
+        return newest.id
+      }
+      return prev
+    })
     pendingLocalIdRef.current = null
   }, [sessions])
 
@@ -130,14 +180,33 @@ export default function ChatPage({ apiReady }: Props) {
     setMessages(prev => ({ ...prev, [id]: [] }))
   }
 
+  function togglePin(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setPinnedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem('hermes_pinned_ids', JSON.stringify([...next]))
+      return next
+    })
+  }
+
   // If currentId is not in DB sessions yet, show it as pending entry at top
   const displaySessions = useMemo(() => {
-    if (currentId && !sessions.find(s => s.id === currentId)) {
-      const pending = { id: currentId, title: 'New chat', _pending: true } as any
-      return [pending, ...sessions]
-    }
-    return sessions
+    const base = (currentId && !sessions.find(s => s.id === currentId))
+      ? [{ id: currentId, title: 'New chat', _pending: true } as any, ...sessions]
+      : sessions
+    return base
   }, [sessions, currentId])
+
+  const pinnedSessions = useMemo(
+    () => displaySessions.filter(s => pinnedIds.has(s.id)),
+    [displaySessions, pinnedIds]
+  )
+  const unpinnedSessions = useMemo(
+    () => displaySessions.filter(s => !pinnedIds.has(s.id)),
+    [displaySessions, pinnedIds]
+  )
 
   const currentMsgs = currentId ? (messages[currentId] ?? []) : []
   const activeSession: HermesSession | null = sessions.find(s => s.id === currentId) ?? null
@@ -169,11 +238,21 @@ export default function ChatPage({ apiReady }: Props) {
     }
 
     const userText = input.trim()
+    const currentAttachments = [...attachments]
     setInput('')
+    setAttachments([])
+
+    // Save first message as local title if session has none yet
+    if (!localTitles[sid] && !(sessions.find(s => s.id === sid)?.title)) {
+      saveLocalTitle(sid, userText)
+    }
 
     setMessages(prev => ({
       ...prev,
-      [sid!]: [...(prev[sid!] ?? []), { role: 'user', content: userText }, { role: 'assistant', content: '' }],
+      [sid!]: [...(prev[sid!] ?? []),
+        { role: 'user', content: userText, attachments: currentAttachments.length ? currentAttachments : undefined },
+        { role: 'assistant', content: '' },
+      ],
     }))
     setStreaming(true)
 
@@ -188,7 +267,7 @@ export default function ChatPage({ apiReady }: Props) {
         model,
         messages: [
           ...history.map(m => ({ role: m.role, content: m.content })),
-          { role: 'user' as const, content: userText },
+          { role: 'user' as const, content: buildMessageContent(userText, currentAttachments) },
         ],
         stream: true,
       }
@@ -198,6 +277,7 @@ export default function ChatPage({ apiReady }: Props) {
         body,
       })
       if (!runId) throw new Error('No run ID')
+      activeRunIdRef.current = runId
 
       let buf = ''
       let totalTokens = 0
@@ -252,9 +332,14 @@ export default function ChatPage({ apiReady }: Props) {
           }
         }
         if (event.type === 'end' || event.type === 'error') {
+          activeRunIdRef.current = null
           setStreaming(false)
           unsub?.()
           if (totalTokens > 0) patchLastMsg({ tokens: totalTokens })
+          // mark as last active (green dot)
+          const activeId = pendingLocalIdRef.current ?? sid
+          setLastActiveId(activeId)
+          localStorage.setItem('hermes_last_active_id', activeId ?? '')
           // reload sessions so new/updated session appears in the list
           setTimeout(() => reloadSessions(), 400)
         }
@@ -265,8 +350,89 @@ export default function ChatPage({ apiReady }: Props) {
     }
   }
 
+  function stopStream() {
+    if (activeRunIdRef.current) {
+      window.hermes?.streamStop(activeRunIdRef.current)
+      activeRunIdRef.current = null
+    }
+  }
+
+  async function pickFile() {
+    const file = await window.hermes?.showFilePicker()
+    if (file) setAttachments(prev => [...prev, file as Attachment])
+  }
+
+  function removeAttachment(idx: number) {
+    setAttachments(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function buildMessageContent(text: string, atts: Attachment[]) {
+    const images = atts.filter(a => a.type === 'image')
+    const textFiles = atts.filter(a => a.type === 'text')
+    const otherFiles = atts.filter(a => a.type === 'file')
+
+    let fullText = text
+    if (textFiles.length > 0) {
+      fullText = textFiles.map(f => `**[${f.name}]**\n\`\`\`\n${f.data}\n\`\`\``).join('\n\n') + '\n\n' + fullText
+    }
+    if (otherFiles.length > 0) {
+      fullText = otherFiles.map(f => `[Attached file: ${f.path}]`).join('\n') + '\n\n' + fullText
+    }
+
+    if (images.length === 0) return fullText
+
+    return [
+      { type: 'text', text: fullText },
+      ...images.map(img => ({
+        type: 'image_url',
+        image_url: { url: `data:${img.mime};base64,${img.data}` },
+      })),
+    ]
+  }
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+  }
+
+  function renderSessionItem(s: any) {
+    const isDb = !s._pending
+    const totalTok = isDb ? ((s.input_tokens ?? 0) + (s.output_tokens ?? 0)) : 0
+    const cost = isDb ? (s.actual_cost_usd ?? s.estimated_cost_usd ?? 0) : 0
+    const isActive = s.id === currentId
+    const isLast = s.id === lastActiveId
+    const isPinned = pinnedIds.has(s.id)
+    return (
+      <div
+        key={s.id}
+        className={`session-item ${isActive ? 'active' : ''} ${isPinned ? 'pinned' : ''}`}
+        onClick={() => isDb ? selectSession(s.id) : setCurrentId(s.id)}
+      >
+        <div className="session-title-row">
+          {isLast && <span className="session-dot" title="Last active" />}
+          <span className="session-title">{s.title ?? localTitles[s.id] ?? 'Untitled'}</span>
+          {isDb && (
+            <button
+              className={`session-pin-btn ${isPinned ? 'is-pinned' : ''}`}
+              onClick={(e) => togglePin(s.id, e)}
+              title={isPinned ? 'Unpin' : 'Pin to top'}
+            >
+              📌
+            </button>
+          )}
+        </div>
+        <div className="session-meta">
+          {isDb && s.started_at && (
+            <span className="session-time">{fmtTime(s.started_at)}</span>
+          )}
+          {totalTok > 0 && (
+            <span className="session-tokens">{fmtTokens(totalTok)}</span>
+          )}
+          {cost > 0 && (
+            <span className="session-cost">${cost.toFixed(3)}</span>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -278,31 +444,19 @@ export default function ChatPage({ apiReady }: Props) {
           {sessionsLoading && (
             <div className="sessions-loading">Loading sessions…</div>
           )}
-          {displaySessions.map((s: any) => {
-            const isDb = !s._pending
-            const totalTok = isDb ? ((s.input_tokens ?? 0) + (s.output_tokens ?? 0)) : 0
-            const cost = isDb ? (s.actual_cost_usd ?? s.estimated_cost_usd ?? 0) : 0
-            return (
-              <div
-                key={s.id}
-                className={`session-item ${s.id === currentId ? 'active' : ''}`}
-                onClick={() => isDb ? selectSession(s.id) : setCurrentId(s.id)}
-              >
-                <span className="session-title">{s.title ?? 'Untitled'}</span>
-                <div className="session-meta">
-                  {isDb && s.started_at && (
-                    <span className="session-time">{fmtTime(s.started_at)}</span>
-                  )}
-                  {totalTok > 0 && (
-                    <span className="session-tokens">{fmtTokens(totalTok)}</span>
-                  )}
-                  {cost > 0 && (
-                    <span className="session-cost">${cost.toFixed(3)}</span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+
+          {/* Pinned section */}
+          {pinnedSessions.length > 0 && (
+            <>
+              <div className="session-section-label">Pinned</div>
+              {pinnedSessions.map((s: any) => renderSessionItem(s))}
+              {unpinnedSessions.length > 0 && <div className="session-separator" />}
+            </>
+          )}
+
+          {/* Regular sessions */}
+          {unpinnedSessions.map((s: any) => renderSessionItem(s))}
+
           {!sessionsLoading && displaySessions.length === 0 && (
             <div className="sessions-empty">No sessions yet</div>
           )}
@@ -348,10 +502,15 @@ export default function ChatPage({ apiReady }: Props) {
                 <div key={i} className={`message ${msg.role}`}>
                   <div className="msg-avatar">{msg.role === 'user' ? 'You' : 'H'}</div>
                   <div className="msg-body">
-                    <div
-                      className="msg-content md-content"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-                    />
+                    {msg.attachments?.filter(a => a.type === 'image').map((a, i) => (
+                      <img key={i} src={`data:${a.mime};base64,${a.data}`} className="msg-image" alt={a.name} />
+                    ))}
+                    {msg.content && (
+                      <div
+                        className="msg-content md-content"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                      />
+                    )}
                     {msg.tokens && msg.tokens > 0 && (
                       <div className="msg-meta">{fmtTokens(msg.tokens)} tokens</div>
                     )}
@@ -386,24 +545,49 @@ export default function ChatPage({ apiReady }: Props) {
         </div>
 
         <div className="input-area">
-          <textarea
-            className="chat-input"
-            placeholder={apiReady
-              ? 'Message Hermes… (Enter to send, Shift+Enter for newline)'
-              : 'Enable API server to start chatting'}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={!apiReady || streaming}
-            rows={3}
-          />
-          <button
-            className="send-btn"
-            onClick={send}
-            disabled={!apiReady || streaming || !input.trim()}
-          >
-            {streaming ? '⏸' : '↑'}
-          </button>
+          {attachments.length > 0 && (
+            <div className="attachments-preview">
+              {attachments.map((a, i) => (
+                <div key={i} className="attach-chip">
+                  {a.type === 'image'
+                    ? <img src={`data:${a.mime};base64,${a.data}`} className="attach-thumb" alt={a.name} />
+                    : <span className="attach-icon">{a.type === 'text' ? '📄' : '📎'}</span>
+                  }
+                  <span className="attach-name">{a.name}</span>
+                  <button className="attach-remove" onClick={() => removeAttachment(i)}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="input-row">
+            <button
+              className="attach-btn"
+              onClick={pickFile}
+              disabled={!apiReady || streaming}
+              title="Attach file or image"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </button>
+            <textarea
+              className="chat-input"
+              placeholder={apiReady
+                ? 'Message Hermes… (Enter to send, Shift+Enter for newline)'
+                : 'Enable API server to start chatting'}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              disabled={!apiReady || streaming}
+              rows={3}
+            />
+            {streaming
+              ? <button className="stop-btn" onClick={stopStream} title="Stop">■</button>
+              : <button className="send-btn" onClick={send} disabled={!apiReady || (!input.trim() && !attachments.length)}>↑</button>
+            }
+          </div>
         </div>
       </div>
     </div>
