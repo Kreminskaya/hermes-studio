@@ -77,6 +77,7 @@ export default function ChatPage({ apiReady }: Props) {
   const [model, setModel] = useState('hermes-agent')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const activeRunIdRef = useRef<string | null>(null)
+  const unsubStreamRef = useRef<(() => void) | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Local titles for API sessions (Hermes doesn't generate titles for API sessions)
@@ -278,12 +279,15 @@ export default function ChatPage({ apiReady }: Props) {
       })
       if (!runId) throw new Error('No run ID')
       activeRunIdRef.current = runId
+      // store unsub so stopStream can call it even from outside this closure
+      // (set after onStream call below — but ref is set here to mark active state)
 
       let buf = ''
       let totalTokens = 0
       let currentEvent = ''
 
       const unsub = window.hermes?.onStream(runId, (event) => {
+        if (!unsubStreamRef.current) return // already stopped manually
         if (event.type === 'chunk' && event.data) {
           const lines = (buf + event.data).split('\n')
           buf = lines.pop() ?? ''
@@ -333,6 +337,7 @@ export default function ChatPage({ apiReady }: Props) {
         }
         if (event.type === 'end' || event.type === 'error') {
           activeRunIdRef.current = null
+          unsubStreamRef.current = null
           setStreaming(false)
           unsub?.()
           if (totalTokens > 0) patchLastMsg({ tokens: totalTokens })
@@ -344,6 +349,7 @@ export default function ChatPage({ apiReady }: Props) {
           setTimeout(() => reloadSessions(), 400)
         }
       })
+      unsubStreamRef.current = unsub ?? null
     } catch (e: any) {
       patchLastMsg({ content: `Error: ${e.message}` })
       setStreaming(false)
@@ -351,10 +357,17 @@ export default function ChatPage({ apiReady }: Props) {
   }
 
   function stopStream() {
+    // Unsubscribe from stream events immediately so no more state updates
+    unsubStreamRef.current?.()
+    unsubStreamRef.current = null
+    // Kill the underlying HTTP request if it's still active
     if (activeRunIdRef.current) {
       window.hermes?.streamStop(activeRunIdRef.current)
       activeRunIdRef.current = null
     }
+    // Always clear streaming state — regardless of timing
+    setStreaming(false)
+    setActiveTool(null)
   }
 
   async function pickFile() {
