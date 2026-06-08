@@ -1,76 +1,58 @@
 <div align="center">
 
-<!-- TODO: Replace with your banner image -->
-<!-- ![Hermes Studio Banner](./resources/banner.png) -->
+# 🖥️ Hermes Studio
 
-# Hermes Studio
+### A native macOS app for [Hermes](https://github.com/nikvdp/hermes) AI agents
 
-### A native macOS desktop app for [Hermes](https://github.com/nikvdp/hermes) AI agents
-
-Hermes is powerful. But it lives in the terminal.
-**Hermes Studio** gives it a proper home — streaming chat, a live agent Kanban board, cron jobs, and three themes. No terminal needed.
+> Streaming chat · Live Kanban · Cron jobs · Three themes · No terminal needed.
 
 <br/>
 
+![Hermes Studio Demo](./resources/demo.gif)
+
+<br/>
+
+[![GitHub stars](https://img.shields.io/github/stars/Kreminskaya/hermes-studio?style=social)](https://github.com/Kreminskaya/hermes-studio/stargazers)
 ![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-black?style=flat-square&logo=apple)
 ![Electron](https://img.shields.io/badge/Electron-35-47848F?style=flat-square&logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)
 
-<br/>
-
-<!-- TODO: Add main screenshot here -->
-<!-- ![Hermes Studio Screenshot](./resources/screenshot-chat.png) -->
-
 </div>
 
 ---
 
-## Overview
+## 🎯 Who is this for?
 
-If you run Hermes agents, you know the drill — terminal windows, log scrolling, no visibility into what's actually happening across your agents. Hermes Studio solves this.
+You run **Hermes AI agents** on your Mac. You know what Hermes can do — but you're tired of:
 
-It connects directly to the Hermes runtime on your machine and gives you:
-- A real chat interface with streaming, file attachments, and the ability to stop the agent mid-run
-- A live Kanban board that shows what every agent is doing right now
-- Full session history that doesn't disappear when you switch tabs
-- Three carefully designed themes
+- Juggling terminal windows and scrolling through logs to see what's happening
+- Zero visibility into what multiple agents are doing simultaneously
+- Losing your chat context every time you switch tabs or close a session
+- No way to stop an agent mid-run when it goes off track
 
-Everything reads directly from Hermes's SQLite databases and API — no sync, no cloud, no middleman.
-
----
-
-## Screenshots
-
-<!-- TODO: Add screenshots -->
-<!-- 
-![Chat](./resources/screenshot-chat.png)
-![Kanban](./resources/screenshot-kanban.png)
-![Themes](./resources/screenshot-themes.png)
--->
-
-*Screenshots coming soon — video demo in progress.*
+If that's you — Hermes Studio was built for you.
 
 ---
 
-## Features
+## ✨ Features
 
 ### 💬 Chat
-A proper chat interface for your Hermes agents with everything you'd expect.
+A proper chat interface with everything you'd expect from a modern AI client.
 
-- **Live streaming** with real-time tool-progress indicators (you see what the agent is doing, step by step)
-- **Stop button** — red button to interrupt the agent the moment it starts going off-track
-- **File & image attachments** — attach screenshots, documents, code files directly in the chat
-- **Pinned sessions** — pin important chats to the top of the sidebar
-- **Last-active indicator** — green dot marks the chat where the agent last responded
-- **Auto-named sessions** — new chats are titled from your first message, not "Untitled"
-- **Tab-safe history** — switching to Kanban and back doesn't wipe your chat
+- **Live streaming** with real-time tool-progress indicators (see every step the agent takes)
+- **Stop button** — interrupt the agent the moment it starts going off-track
+- **File & image attachments** — drop screenshots, documents, code files directly in chat
+- **Pinned sessions** — keep important chats at the top of the sidebar
+- **Last-active indicator** — green dot marks where the agent last responded
+- **Auto-named sessions** — chats are titled from your first message, not "Untitled"
+- **Tab-safe history** — switching to Kanban and back doesn't wipe your chat state
 
 ### 📋 Kanban
-A visual board that shows exactly what your agents are working on.
+A live board showing exactly what every agent is working on right now.
 
-- Pulls live from Hermes's `kanban.db` — no polling lag
-- Shows task status, assignee profile, run duration, and live activity indicator
+- Pulls directly from Hermes's `kanban.db` — no polling lag
+- Shows task status, assignee, run duration, and live activity indicator
 - Archived tasks visible for reference (last 5 per board)
 - One-click refresh
 
@@ -82,34 +64,24 @@ Browse and manage all scheduled agent jobs without touching a config file.
 - Human-readable schedule display
 
 ### 📚 Skills
-Browse every installed Hermes skill in a visual card grid — name, description, category, version, tags. At a glance.
+Browse every installed Hermes skill in a visual card grid — name, description, category, version, tags.
 
 ### ⚙️ Settings
-- **Three themes:** Dark, Light, Lime — switch instantly, no restart
+- **Three themes:** Dark, Light, Lime — switch instantly, no restart required
 - Theme preference saved between sessions
 
 ---
 
-## Requirements
-
-- **macOS** — Apple Silicon (M1 / M2 / M3 / M4)
-- **macOS 13 Ventura** or later
-- **[Hermes](https://github.com/nikvdp/hermes)** installed and accessible in your PATH
-
-> Hermes Studio auto-launches Hermes on startup and waits until the API is ready. You don't need to manage it manually.
-
----
-
-## Install
+## 🚀 Quick Start
 
 ### Download (recommended)
 
-Download the latest `Hermes Studio-x.x.x-arm64.dmg` from [Releases](../../releases), open it, drag to Applications.
+Grab the latest `Hermes Studio-x.x.x-arm64.dmg` from [Releases](../../releases), open it, drag to Applications.
 
 ### Build from source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hermes-studio.git
+git clone https://github.com/Kreminskaya/hermes-studio.git
 cd hermes-studio
 npm install
 npm run build
@@ -123,7 +95,54 @@ npm run dev
 
 ---
 
-## First Launch
+## 📸 Screenshots
+
+<div align="center">
+  <img src="./resources/screenshot-chat.png" alt="Chat with streaming" width="700"/>
+  <p><em>Chat — live streaming with tool progress indicators</em></p>
+</div>
+
+<div align="center">
+  <img src="./resources/screenshot-kanban.png" alt="Live Kanban board" width="700"/>
+  <p><em>Kanban — see what every agent is doing right now</em></p>
+</div>
+
+<div align="center">
+  <img src="./resources/screenshot-skills.png" alt="Skills browser" width="700"/>
+  <p><em>Skills — browse all installed Hermes skills</em></p>
+</div>
+
+<div align="center">
+  <img src="./resources/screenshot-settings.png" alt="Three themes" width="700"/>
+  <p><em>Dark · Light · Lime & Raspberry — three carefully designed themes</em></p>
+</div>
+
+---
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Desktop shell | Electron 35 |
+| UI | React 19 + TypeScript |
+| Styling | CSS custom properties (3 themes) |
+| Main process | Node.js |
+| Data | SQLite (via Hermes runtime) |
+| Build | electron-builder |
+
+---
+
+## ⚙️ Requirements
+
+- **macOS** — Apple Silicon (M1 / M2 / M3 / M4)
+- **macOS 13 Ventura** or later
+- **[Hermes](https://github.com/nikvdp/hermes)** installed and accessible in your PATH
+
+> Hermes Studio auto-launches Hermes on startup and waits until the API is ready. You don't need to manage it manually.
+
+---
+
+## 🔧 First Launch
 
 On first launch, Hermes Studio will:
 1. Auto-start Hermes if it's not already running
@@ -138,7 +157,7 @@ API_SERVER_PORT=8642
 
 ---
 
-## Agent Profiles
+## 👤 Agent Profiles
 
 Hermes Studio works with Hermes's standard profile system at `~/.hermes/profiles/`. Each profile is a YAML file that defines which model and tools an agent gets.
 
@@ -184,7 +203,7 @@ agent:
 
 ---
 
-## Themes
+## 🎨 Themes
 
 | | Theme | Accent | Feel |
 |--|-------|--------|------|
@@ -196,8 +215,25 @@ All colors are CSS custom properties — adding a new theme is a single `[data-t
 
 ---
 
+## 🗺️ Roadmap
+
+- [x] Streaming chat with real-time tool progress
+- [x] Live Kanban board (reads from Hermes SQLite)
+- [x] Cron job management
+- [x] Skills browser
+- [x] Three themes (Dark, Light, Lime)
+- [x] File & image attachments in chat
+- [x] Stop button — interrupt agent mid-run
+- [x] Pinned sessions + last-active indicator
+- [ ] Search across sessions
+- [ ] Multi-profile switcher in UI
+- [ ] Notifications when agent finishes a task
+- [ ] Windows / Linux support
+
+---
+
 <details>
-<summary><strong>For Developers — Hermes API Quirks</strong></summary>
+<summary><strong>🔍 For Developers — Hermes API Quirks</strong></summary>
 
 Real behavioral differences in Hermes that required workarounds. Documented here for anyone building another Hermes client.
 
@@ -229,7 +265,7 @@ When launched from Launchpad/Finder, PATH may not include Homebrew. **Fix:** res
 </details>
 
 <details>
-<summary><strong>Project Structure</strong></summary>
+<summary><strong>📁 Project Structure</strong></summary>
 
 ```
 src/
@@ -261,13 +297,23 @@ resources/
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 Issues and PRs are welcome.
 Please test UI changes across all three themes before submitting.
 
 ---
 
-## License
+## 📄 License
 
-MIT
+MIT — see [LICENSE](LICENSE)
+
+---
+
+<div align="center">
+
+Built with ❤️ in Saint Petersburg
+
+⭐ If Hermes Studio is useful — a star helps others find it!
+
+</div>

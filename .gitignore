@@ -17,9 +17,15 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # Large source files used during build (not needed in repo)
 resources/icon_source.png
 resources/icon_rounded.png
 resources/icon.svg
+
+# Demo recording scripts (local use only)
+scripts/demo-hide.sh
+scripts/demo-seed.sh
+scripts/demo-restore.sh
