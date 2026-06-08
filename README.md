@@ -312,7 +312,7 @@ MIT — see [LICENSE](LICENSE)
 
 <div align="center">
 
-Built with ❤️ in Saint Petersburg
+Built with ❤️ by Natalie Kreminskaya
 
 ⭐ If Hermes Studio is useful — a star helps others find it!
 
