@@ -62,6 +62,25 @@ function dbToMessages(dbMsgs: HermesMessage[]): Message[] {
     }))
 }
 
+// Derive a sidebar title from the first user message of a session.
+// Content may be raw text or a JSON multimodal array (text + attachments).
+function deriveTitle(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  let text = raw
+  if (raw.startsWith('[') || raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw)
+      const parts = Array.isArray(parsed) ? parsed : [parsed]
+      const textPart = parts.find((p: any) => typeof p?.text === 'string')
+      if (!textPart) return null
+      text = textPart.text
+    } catch { return null }
+  }
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (!clean) return null
+  return clean.length > 60 ? clean.slice(0, 60) + '…' : clean
+}
+
 export default function ChatPage({ apiReady }: Props) {
   const { sessions, loading: sessionsLoading, reload: reloadSessions } = useSessions()
   const [currentId, setCurrentId] = useState<string | null>(null)
@@ -335,7 +354,15 @@ export default function ChatPage({ apiReady }: Props) {
             } catch {}
           }
         }
-        if (event.type === 'end' || event.type === 'error') {
+        if (event.type === 'error') {
+          activeRunIdRef.current = null
+          unsubStreamRef.current = null
+          setStreaming(false)
+          unsub?.()
+          patchLastMsg({ content: `Error: ${event.error ?? 'unknown error'}` })
+          return
+        }
+        if (event.type === 'end') {
           activeRunIdRef.current = null
           unsubStreamRef.current = null
           setStreaming(false)
@@ -422,7 +449,7 @@ export default function ChatPage({ apiReady }: Props) {
       >
         <div className="session-title-row">
           {isLast && <span className="session-dot" title="Last active" />}
-          <span className="session-title">{s.title ?? localTitles[s.id] ?? 'Untitled'}</span>
+          <span className="session-title">{s.title ?? localTitles[s.id] ?? deriveTitle(s.first_user_msg) ?? 'Untitled'}</span>
           {isDb && (
             <button
               className={`session-pin-btn ${isPinned ? 'is-pinned' : ''}`}

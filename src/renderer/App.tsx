@@ -96,9 +96,20 @@ export default function App() {
     checkApiReady()
   }
 
+  const [apiAuthError, setApiAuthError] = useState(false)
+
   async function checkApiReady() {
-    const res = await window.hermes?.api?.({ path: '/health' })
-    setApiReady(res?.ok === true)
+    const res = await window.hermes?.api?.({ path: '/v1/models' })
+    if (res?.ok && res.status === 200) {
+      setApiReady(true)
+      setApiAuthError(false)
+    } else if (res?.status === 401 || res?.status === 403) {
+      setApiReady(false)
+      setApiAuthError(true)
+    } else {
+      setApiReady(res?.ok === true)
+      setApiAuthError(false)
+    }
   }
 
   const showOverlay = launchStatus === 'starting' || launchStatus === 'error'
@@ -127,7 +138,10 @@ export default function App() {
         />
         <main className="main-content">
           {apiReady === false && (
-            <SetupBanner onEnabled={() => { setApiReady(true); checkApiReady() }} />
+            <SetupBanner
+              onEnabled={() => { setApiReady(true); setApiAuthError(false); checkApiReady() }}
+              authError={apiAuthError}
+            />
           )}
           <PageErrorBoundary>
             <div style={{ display: page === 'chat'     ? 'contents' : 'none' }}><ChatPage apiReady={apiReady === true} /></div>
@@ -182,6 +196,7 @@ export interface HermesSession {
   estimated_cost_usd: number | null
   actual_cost_usd: number | null
   model: string | null
+  first_user_msg?: string | null
 }
 
 export interface HermesMessage {

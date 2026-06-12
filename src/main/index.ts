@@ -3,6 +3,7 @@ import { join, extname, basename } from 'path'
 import { existsSync, readFileSync, writeFileSync, watchFile, readdirSync, statSync, lstatSync } from 'fs'
 import { homedir } from 'os'
 import { execSync, spawn } from 'child_process'
+import { randomBytes } from 'node:crypto'
 import * as http from 'http'
 
 // Active SSE streams — keyed by runId so we can abort them
@@ -28,6 +29,19 @@ function safeSend(channel: string, ...args: unknown[]) {
       mainWindow.webContents.send(channel, ...args)
     }
   } catch {}
+}
+
+// ─── .env parser (re-reads on every call to survive key rotation) ─────────────
+
+function readEnv(): Record<string, string> {
+  try {
+    const env: Record<string, string> = {}
+    for (const line of readFileSync(HERMES_ENV, 'utf8').split('\n')) {
+      const m = line.match(/^([^#=]+)=(.*)$/)
+      if (m) env[m[1].trim()] = m[2].trim()
+    }
+    return env
+  } catch { return {} }
 }
 
 // ─── SQLite helper (uses macOS built-in sqlite3 CLI, zero native deps) ────────
@@ -120,7 +134,7 @@ async function ensureHermesRunning() {
 
   sendHermesStatus('starting', 'Starting Hermes...')
 
-  hermesProcess = spawn(bin, ['start'], {
+  hermesProcess = spawn(bin, ['gateway', 'run', '--replace'], {
     detached: false,
     stdio: 'ignore',
     env: { ...process.env, HOME: homedir() },
@@ -231,17 +245,7 @@ ipcMain.handle('hermes:gateway-state', () => {
   try { return JSON.parse(readFileSync(GATEWAY_STATE, 'utf8')) } catch { return null }
 })
 
-ipcMain.handle('hermes:read-env', () => {
-  try {
-    const lines = readFileSync(HERMES_ENV, 'utf8').split('\n')
-    const env: Record<string, string> = {}
-    for (const line of lines) {
-      const m = line.match(/^([^#=]+)=(.*)$/)
-      if (m) env[m[1].trim()] = m[2].trim()
-    }
-    return env
-  } catch { return {} }
-})
+ipcMain.handle('hermes:read-env', () => readEnv())
 
 ipcMain.handle('hermes:enable-api-server', (_e, apiKey?: string) => {
   try {
@@ -253,8 +257,10 @@ ipcMain.handle('hermes:enable-api-server', (_e, apiKey?: string) => {
     setVar('API_SERVER_ENABLED', 'true')
     setVar('API_SERVER_PORT', String(API_PORT))
     setVar('API_SERVER_HOST', '127.0.0.1')
-    setVar('API_SERVER_CORS_ORIGINS', 'http://localhost:5173')
-    if (apiKey) setVar('API_SERVER_KEY', apiKey)
+    setVar('API_SERVER_CORS_ORIGINS', 'http://localhost:5200')
+    const existingKey = readEnv()['API_SERVER_KEY']
+    const resolvedKey = apiKey || existingKey || randomBytes(32).toString('hex')
+    setVar('API_SERVER_KEY', resolvedKey)
     writeFileSync(HERMES_ENV, content.trim() + '\n')
     return { ok: true }
   } catch (e: any) { return { ok: false, error: e.message } }
@@ -277,12 +283,6 @@ ipcMain.handle('hermes:restart', async () => {
       }
     }
   } catch {}
-
-  // Try hermes stop command as well
-  const bin = findHermesBin()
-  if (bin) {
-    try { execSync(`"${bin}" stop`, { timeout: 5000 }) } catch {}
-  }
 
   await new Promise(r => setTimeout(r, 2000))
   await ensureHermesRunning()
@@ -381,8 +381,11 @@ ipcMain.handle('hermes:profiles', () => {
 ipcMain.handle('hermes:sessions', (_e, limit = 40) => {
   return sqliteQuery(STATE_DB, [
     'SELECT id, title, started_at, ended_at, message_count, tool_call_count,',
-    '       input_tokens, output_tokens, estimated_cost_usd, actual_cost_usd, model',
+    '       input_tokens, output_tokens, estimated_cost_usd, actual_cost_usd, model,',
+    '       (SELECT m.content FROM messages m WHERE m.session_id = sessions.id',
+    "        AND m.role = 'user' ORDER BY m.timestamp ASC LIMIT 1) AS first_user_msg",
     'FROM sessions',
+    "WHERE source != 'cron'",
     'ORDER BY started_at DESC',
     `LIMIT ${limit}`,
   ].join(' '))
@@ -429,12 +432,14 @@ ipcMain.handle('hermes:kanban-stats', () => {
 ipcMain.handle('hermes:api', async (_e, { method, path, body, headers = {} }) => {
   return new Promise((resolve) => {
     const url  = new URL(API_BASE + path)
+    const apiKey = readEnv()['API_SERVER_KEY']
+    const authHeader: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
     const opts: http.RequestOptions = {
       hostname: url.hostname,
       port: Number(url.port),
       path: url.pathname + url.search,
       method: method ?? 'GET',
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json', ...authHeader, ...headers },
     }
     const req = http.request(opts, (res) => {
       let data = ''
@@ -455,6 +460,8 @@ ipcMain.handle('hermes:api', async (_e, { method, path, body, headers = {} }) =>
 ipcMain.handle('hermes:stream-start', async (_e, { path, body, headers = {} }) => {
   const runId = Math.random().toString(36).slice(2)
   const url   = new URL(API_BASE + path)
+  const apiKey = readEnv()['API_SERVER_KEY']
+  const authHeader: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
   const opts: http.RequestOptions = {
     hostname: url.hostname,
     port: Number(url.port),
@@ -464,10 +471,24 @@ ipcMain.handle('hermes:stream-start', async (_e, { path, body, headers = {} }) =
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
       'Cache-Control': 'no-cache',
+      ...authHeader,
       ...headers,
     },
   }
   const req = http.request(opts, (res) => {
+    const ct = res.headers['content-type'] ?? ''
+    if (res.statusCode !== 200 || !ct.includes('text/event-stream')) {
+      // Non-SSE response — collect body and forward as error
+      let errBody = ''
+      res.setEncoding('utf8')
+      res.on('data', (c: string) => (errBody += c))
+      res.on('end', () => {
+        activeStreams.delete(runId)
+        const detail = errBody.slice(0, 512) || `HTTP ${res.statusCode}`
+        safeSend(`stream:${runId}`, { type: 'error', error: detail })
+      })
+      return
+    }
     res.setEncoding('utf8')
     res.on('data', (chunk: string) => {
       safeSend(`stream:${runId}`, { type: 'chunk', data: chunk })
