@@ -3,11 +3,12 @@ import './SetupBanner.css'
 
 interface Props {
   onEnabled: () => void
+  authError?: boolean
 }
 
 type State = 'idle' | 'writing' | 'restarting' | 'waiting' | 'error'
 
-export default function SetupBanner({ onEnabled }: Props) {
+export default function SetupBanner({ onEnabled, authError }: Props) {
   const [state, setState] = useState<State>('idle')
   const [error, setError] = useState<string | null>(null)
 
@@ -54,9 +55,11 @@ export default function SetupBanner({ onEnabled }: Props) {
     <div className="setup-banner">
       <div className="setup-icon">⚡</div>
       <div className="setup-body">
-        <p className="setup-title">Hermes API server is not enabled</p>
+        <p className="setup-title">{authError ? 'Hermes требует API-ключ' : 'Hermes API server is not enabled'}</p>
         <p className="setup-desc">
-          Нажми кнопку — Studio включит API, перезапустит Hermes и подключится автоматически.
+          {authError
+            ? 'Проверьте API_SERVER_KEY в ~/.hermes/.env — Hermes отвечает 401/403 на все запросы.'
+            : 'Нажми кнопку — Studio включит API, перезапустит Hermes и подключится автоматически.'}
         </p>
         {error && <p className="setup-error">{error}</p>}
       </div>
