@@ -1,4 +1,4 @@
-import type { Page, GatewayState, HermesProfile } from '../App'
+import type { Page, GatewayState, HermesProfile, HermesVersion } from '../App'
 import type { Theme } from '../pages/SettingsPage'
 import './Sidebar.css'
 
@@ -8,13 +8,16 @@ interface Props {
   gatewayState: GatewayState | null
   profiles: HermesProfile[]
   theme: Theme
+  version: HermesVersion | null
 }
 
 const NAV: { id: Page; label: string; icon: string }[] = [
-  { id: 'chat',   label: 'Chat',   icon: '💬' },
-  { id: 'kanban', label: 'Kanban', icon: '📋' },
-  { id: 'cron',   label: 'Cron',   icon: '⏰' },
-  { id: 'skills', label: 'Skills', icon: '✨' },
+  { id: 'chat',     label: 'Chat',     icon: '💬' },
+  { id: 'history',  label: 'History',  icon: '🕘' },
+  { id: 'kanban',   label: 'Kanban',   icon: '📋' },
+  { id: 'insights', label: 'Insights', icon: '📊' },
+  { id: 'cron',     label: 'Cron',     icon: '⏰' },
+  { id: 'skills',   label: 'Skills',   icon: '✨' },
 ]
 
 const THEME_ICONS: Record<Theme, string> = {
@@ -30,7 +33,7 @@ function shortModel(model: string): string {
   return parts[parts.length - 1].slice(0, 18)
 }
 
-export default function Sidebar({ page, onNavigate, gatewayState, profiles, theme }: Props) {
+export default function Sidebar({ page, onNavigate, gatewayState, profiles, theme, version }: Props) {
   const running = gatewayState?.gateway_state === 'running'
   const agents  = gatewayState?.active_agents ?? 0
 
@@ -91,8 +94,13 @@ export default function Sidebar({ page, onNavigate, gatewayState, profiles, them
           <span>Settings</span>
           <span className="theme-badge">{THEME_ICONS[theme]}</span>
         </button>
-        <div className="footer-info">
-          <span className="footer-label">Hermes v0.12</span>
+        <div className="footer-info" title={version?.status || ''}>
+          <span className="footer-label">
+            Hermes {version?.version ? `v${version.version}` : '—'}
+          </span>
+          {version?.updateAvailable
+            ? <span className="footer-update" title={version.status}>update available</span>
+            : version?.version && <span className="footer-uptodate" title={version.status}>latest</span>}
         </div>
       </div>
     </aside>

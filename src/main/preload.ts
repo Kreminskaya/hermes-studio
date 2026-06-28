@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('hermes', {
 
   // Real sessions from state.db
   sessions: (limit?: number) => ipcRenderer.invoke('hermes:sessions', limit),
+  sessionsHistory: (limit?: number) => ipcRenderer.invoke('hermes:sessions-history', limit),
   sessionMessages: (sessionId: string) => ipcRenderer.invoke('hermes:session-messages', sessionId),
 
   // Kanban from kanban.db
@@ -37,6 +38,36 @@ contextBridge.exposeInMainWorld('hermes', {
 
   // Skills
   skills: () => ipcRenderer.invoke('hermes:skills'),
+  skillToggle: (name: string, enable: boolean) => ipcRenderer.invoke('hermes:skill-toggle', name, enable),
+
+  // Insights (usage analytics from state.db) + Hermes version/update awareness
+  insights: () => ipcRenderer.invoke('hermes:insights'),
+  hermesVersion: () => ipcRenderer.invoke('hermes:hermes-version'),
+
+  // Update flow
+  updateCheck: () => ipcRenderer.invoke('hermes:update-check'),
+  updateRun: () => ipcRenderer.invoke('hermes:update-run'),
+  onUpdateProgress: (cb: (e: { line: string }) => void) => {
+    const h = (_: unknown, p: { line: string }) => cb(p)
+    ipcRenderer.on('hermes:update-progress', h)
+    return () => ipcRenderer.removeListener('hermes:update-progress', h)
+  },
+  onUpdateDone: (cb: (e: { ok: boolean; code?: number; error?: string }) => void) => {
+    const h = (_: unknown, p: { ok: boolean; code?: number; error?: string }) => cb(p)
+    ipcRenderer.on('hermes:update-done', h)
+    return () => ipcRenderer.removeListener('hermes:update-done', h)
+  },
+
+  // Notifications
+  setNotifications: (enabled: boolean) => ipcRenderer.invoke('hermes:set-notifications', enabled),
+  testNotification: () => ipcRenderer.invoke('hermes:test-notification'),
+
+  // Navigation pushed from main (e.g. clicking a notification)
+  onNavigate: (cb: (page: string) => void) => {
+    const h = (_: unknown, page: string) => cb(page)
+    ipcRenderer.on('navigate', h)
+    return () => ipcRenderer.removeListener('navigate', h)
+  },
 
   // Hermes process control
   checkRunning: () => ipcRenderer.invoke('hermes:check-running'),

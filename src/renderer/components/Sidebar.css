@@ -267,10 +267,35 @@
 
 .footer-info {
   padding: 4px 11px 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .footer-label {
   font-size: 10.5px;
   color: var(--text-dim);
   letter-spacing: 0.02em;
+}
+
+.footer-update,
+.footer-uptodate {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1.5px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.footer-update {
+  color: var(--bg-base);
+  background: var(--accent);
+  cursor: default;
+}
+
+.footer-uptodate {
+  color: var(--green);
+  background: var(--green-glow);
 }

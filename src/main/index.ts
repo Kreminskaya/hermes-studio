@@ -1,13 +1,22 @@
-import { app, BrowserWindow, ipcMain, shell, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog, Notification } from 'electron'
 import { join, extname, basename } from 'path'
-import { existsSync, readFileSync, writeFileSync, watchFile, readdirSync, statSync, lstatSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, copyFileSync, watchFile, readdirSync, statSync, lstatSync } from 'fs'
 import { homedir } from 'os'
-import { execSync, spawn } from 'child_process'
+import { execSync, execFileSync, spawn } from 'child_process'
 import { randomBytes } from 'node:crypto'
+import { parse as parseYaml } from 'yaml'
 import * as http from 'http'
 
 // Active SSE streams — keyed by runId so we can abort them
 const activeStreams = new Map<string, http.ClientRequest>()
+
+// ─── Notifications: fire a macOS notification when a Kanban task finishes ───────
+let notificationsEnabled = true
+const seenDoneTaskIds = new Set<string>()      // tasks we've already notified about
+let doneSeedingComplete = false                // don't notify for pre-existing history
+
+// ─── Update: single-flight guard so we never run two `hermes update`s at once ──
+let updateRunning = false
 
 const HERMES_HOME = join(homedir(), '.hermes')
 const HERMES_ENV  = join(HERMES_HOME, '.env')
@@ -44,6 +53,16 @@ function readEnv(): Record<string, string> {
   } catch { return {} }
 }
 
+// Disabled-skill names live in config.yaml under skills.disabled (Hermes's own schema)
+const CONFIG_YAML = join(HERMES_HOME, 'config.yaml')
+function readDisabledSkills(): Set<string> {
+  try {
+    const cfg = parseYaml(readFileSync(CONFIG_YAML, 'utf8')) as any
+    const list = cfg?.skills?.disabled
+    return new Set(Array.isArray(list) ? list : [])
+  } catch { return new Set() }
+}
+
 // ─── SQLite helper (uses macOS built-in sqlite3 CLI, zero native deps) ────────
 
 function sqliteQuery<T = unknown>(dbPath: string, sql: string): T[] {
@@ -58,6 +77,45 @@ function sqliteQuery<T = unknown>(dbPath: string, sql: string): T[] {
     return out.trim() ? JSON.parse(out) as T[] : []
   } catch {
     return []
+  }
+}
+
+// ─── Task-completion notifications ───────────────────────────────────────────
+
+interface DoneTask { id: string; title: string | null; assignee: string | null; status: string }
+
+function fetchDoneTasks(): DoneTask[] {
+  if (!existsSync(KANBAN_DB)) return []
+  return sqliteQuery<DoneTask>(KANBAN_DB,
+    'SELECT id, title, assignee, status FROM tasks WHERE completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 60')
+}
+
+// Seed the "already seen" set on startup so we only notify about NEW completions.
+function seedDoneTasks() {
+  for (const t of fetchDoneTasks()) seenDoneTaskIds.add(t.id)
+  doneSeedingComplete = true
+}
+
+// Called whenever kanban.db changes — fire a notification for newly finished tasks.
+function checkTaskCompletions() {
+  if (!doneSeedingComplete) return
+  for (const t of fetchDoneTasks()) {
+    if (seenDoneTaskIds.has(t.id)) continue
+    seenDoneTaskIds.add(t.id)
+    if (!notificationsEnabled || !Notification.isSupported()) continue
+    const n = new Notification({
+      title: '✓ Task finished',
+      body: t.title ? `${t.title}${t.assignee ? ` · ${t.assignee}` : ''}` : 'A Kanban task just completed',
+      silent: false,
+    })
+    n.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+        safeSend('navigate', 'kanban')
+      }
+    })
+    n.show()
   }
 }
 
@@ -217,6 +275,9 @@ app.on('before-quit', () => {
 // ─── File watchers ─────────────────────────────────────────────────────────────
 
 function startFileWatchers() {
+  // Remember which tasks are already finished so we only notify on new completions
+  seedDoneTasks()
+
   // gateway state → push JSON
   if (existsSync(GATEWAY_STATE)) {
     watchFile(GATEWAY_STATE, { interval: 1000 }, () => {
@@ -224,10 +285,11 @@ function startFileWatchers() {
     })
   }
 
-  // kanban.db → push refreshed tasks
+  // kanban.db → push refreshed tasks + fire completion notifications
   if (existsSync(KANBAN_DB)) {
     watchFile(KANBAN_DB, { interval: 2000 }, () => {
       try { safeSend('kanban:refresh') } catch {}
+      try { checkTaskCompletions() } catch {}
     })
   }
 
@@ -299,7 +361,8 @@ ipcMain.handle('hermes:check-running', async () => {
 
 ipcMain.handle('hermes:skills', () => {
   const SKILLS_DIR = join(HERMES_HOME, 'skills')
-  const skills: { category: string; name: string; description: string; tags: string[]; version: string }[] = []
+  const disabled = readDisabledSkills()
+  const skills: { category: string; name: string; description: string; tags: string[]; version: string; enabled: boolean }[] = []
 
   function parseFrontmatter(md: string): Record<string, unknown> {
     const m = md.match(/^---\n([\s\S]*?)\n---/)
@@ -333,12 +396,14 @@ ipcMain.handle('hermes:skills', () => {
         if (!existsSync(skillMd)) continue
         try {
           const fm = parseFrontmatter(readFileSync(skillMd, 'utf8'))
+          const name = (fm.name as string) || skillName
           skills.push({
             category: cat,
-            name: (fm.name as string) || skillName,
+            name,
             description: (fm.description as string) || '',
             tags: (fm.tags as string[]) || [],
             version: (fm.version as string) || '',
+            enabled: !disabled.has(name) && !disabled.has(skillName),
           })
         } catch {}
       }
@@ -346,6 +411,46 @@ ipcMain.handle('hermes:skills', () => {
   } catch {}
 
   return skills
+})
+
+// ─── IPC: enable/disable a skill ────────────────────────────────────────────────
+// Writes config.skills.disabled using Hermes's OWN load_config/save_disabled_skills
+// (same path the official dashboard uses) so we never mangle her heavy config.yaml.
+// A pre-write backup (config.yaml.studio-bak) is the safety net.
+
+ipcMain.handle('hermes:skill-toggle', (_e, name: string, enable: boolean) => {
+  try {
+    if (!name || typeof name !== 'string') return { ok: false, error: 'invalid skill name' }
+    const py = [
+      join(HERMES_HOME, 'hermes-agent', 'venv', 'bin', 'python3'),
+      join(HERMES_HOME, 'hermes-agent', 'venv', 'bin', 'python'),
+    ].find(p => existsSync(p))
+    if (!py) return { ok: false, error: 'Hermes venv python not found' }
+
+    try { if (existsSync(CONFIG_YAML)) copyFileSync(CONFIG_YAML, CONFIG_YAML + '.studio-bak') } catch {}
+
+    const script = [
+      'import sys',
+      'from hermes_cli.config import load_config',
+      'from hermes_cli.skills_config import get_disabled_skills, save_disabled_skills',
+      'name, action = sys.argv[1], sys.argv[2]',
+      'c = load_config()',
+      'd = get_disabled_skills(c)',
+      "(d.discard if action == 'enable' else d.add)(name)",
+      'save_disabled_skills(c, d)',
+      "print('OK')",
+    ].join('\n')
+
+    const out = execFileSync(py, ['-c', script, name, enable ? 'enable' : 'disable'], {
+      cwd: join(HERMES_HOME, 'hermes-agent'),
+      env: { ...process.env, HOME: homedir() },
+      encoding: 'utf8',
+      timeout: 15000,
+    })
+    return { ok: /OK/.test(out), name, enabled: enable }
+  } catch (e: any) {
+    return { ok: false, error: (e.stderr && e.stderr.toString()) || e.message }
+  }
 })
 
 // ─── IPC: profiles ─────────────────────────────────────────────────────────────
@@ -391,6 +496,20 @@ ipcMain.handle('hermes:sessions', (_e, limit = 40) => {
   ].join(' '))
 })
 
+// Full session history for the History page — all sources, with `source` for filtering.
+ipcMain.handle('hermes:sessions-history', (_e, limit = 500) => {
+  const lim = Math.min(Math.max(Number(limit) || 500, 1), 2000)
+  return sqliteQuery(STATE_DB, [
+    'SELECT id, source, title, started_at, ended_at, message_count, tool_call_count,',
+    '       input_tokens, output_tokens, estimated_cost_usd, actual_cost_usd, model,',
+    "       (SELECT m.content FROM messages m WHERE m.session_id = sessions.id",
+    "        AND m.role = 'user' ORDER BY m.timestamp ASC LIMIT 1) AS first_user_msg",
+    'FROM sessions',
+    'ORDER BY started_at DESC',
+    `LIMIT ${lim}`,
+  ].join(' '))
+})
+
 ipcMain.handle('hermes:session-messages', (_e, sessionId: string) => {
   const safe = sessionId.replace(/[^a-zA-Z0-9_-]/g, '')
   return sqliteQuery(STATE_DB, [
@@ -425,6 +544,149 @@ ipcMain.handle('hermes:kanban-tasks', () => {
 ipcMain.handle('hermes:kanban-stats', () => {
   return sqliteQuery(KANBAN_DB,
     'SELECT status, assignee, COUNT(*) as count FROM tasks GROUP BY status, assignee')
+})
+
+// ─── IPC: Hermes version + update awareness ─────────────────────────────────────
+// Single source of truth for "what Hermes are we running" — surfaced in the UI so
+// Studio stays honest across Hermes's frequent rolling updates.
+
+ipcMain.handle('hermes:hermes-version', () => {
+  try {
+    const bin = findHermesBin()
+    if (!bin) return { ok: false, error: 'hermes not found in PATH' }
+    // `hermes --version` reads its cached update-check, so this is fast (no network).
+    const out = execSync(`"${bin}" --version`, { encoding: 'utf8', timeout: 8000 }).trim()
+    // e.g. "Hermes Agent v0.17.0 (2026.6.19) · upstream 190e1ffa\n…\nUp to date"
+    const m = out.match(/Hermes Agent\s+v([^\s]+)\s*\(([^)]*)\)(?:\s*·\s*upstream\s+([0-9a-f]+))?/i)
+    const lines = out.split('\n').map(l => l.trim()).filter(Boolean)
+    const lastLine = lines[lines.length - 1] ?? ''
+    const upToDate = /up to date/i.test(lastLine)
+    return {
+      ok: true,
+      version: m?.[1] ?? null,
+      build: m?.[2] ?? null,
+      upstream: m?.[3] ?? null,
+      status: lastLine,
+      updateAvailable: !upToDate && /update|behind|available|new version/i.test(lastLine),
+    }
+  } catch (e: any) {
+    return { ok: false, error: e.message }
+  }
+})
+
+// ─── IPC: check for a Hermes update (fresh git fetch) ───────────────────────────
+
+ipcMain.handle('hermes:update-check', () => {
+  try {
+    const bin = findHermesBin()
+    if (!bin) return { ok: false, error: 'hermes not found in PATH' }
+    const out = execSync(`"${bin}" update --check`, { encoding: 'utf8', timeout: 30000 }).trim()
+    const upToDate = /up to date|already.*latest|no update/i.test(out)
+    const behind = out.match(/(\d+)\s+commits?\s+behind/i)
+    return {
+      ok: true,
+      available: !upToDate && /update available|behind|new version/i.test(out),
+      behind: behind ? Number(behind[1]) : null,
+      raw: out,
+    }
+  } catch (e: any) {
+    return { ok: false, error: e.message }
+  }
+})
+
+// ─── IPC: run `hermes update` and stream progress to the renderer ───────────────
+// Always with --backup (a full ~/.hermes zip) so the user can roll back. Mutating,
+// so it's behind an explicit button + confirmation in the UI.
+
+ipcMain.handle('hermes:update-run', () => {
+  if (updateRunning) return { ok: false, error: 'Update already in progress' }
+  const bin = findHermesBin()
+  if (!bin) return { ok: false, error: 'hermes not found in PATH' }
+
+  updateRunning = true
+  safeSend('hermes:update-progress', { line: '→ Running: hermes update --backup --yes' })
+
+  const proc = spawn(bin, ['update', '--backup', '--yes'], {
+    env: { ...process.env, HOME: homedir() },
+  })
+  const onData = (buf: Buffer) => {
+    for (const line of buf.toString().split('\n')) {
+      const l = line.replace(/\s+$/, '')
+      if (l.trim()) safeSend('hermes:update-progress', { line: l })
+    }
+  }
+  proc.stdout?.on('data', onData)
+  proc.stderr?.on('data', onData)
+  proc.on('close', (code) => {
+    updateRunning = false
+    safeSend('hermes:update-done', { ok: code === 0, code })
+  })
+  proc.on('error', (err) => {
+    updateRunning = false
+    safeSend('hermes:update-done', { ok: false, error: err.message })
+  })
+
+  return { ok: true, started: true }
+})
+
+// ─── IPC: notification preferences ──────────────────────────────────────────────
+
+ipcMain.handle('hermes:set-notifications', (_e, enabled: boolean) => {
+  notificationsEnabled = !!enabled
+  return { ok: true, enabled: notificationsEnabled }
+})
+
+ipcMain.handle('hermes:test-notification', () => {
+  if (!Notification.isSupported()) return { ok: false, error: 'Notifications not supported' }
+  new Notification({ title: 'Hermes Studio', body: 'Notifications are working ✓' }).show()
+  return { ok: true }
+})
+
+// ─── IPC: Insights — aggregated usage analytics from state.db (read-only) ────────
+// DeepSeek runs make cost ≈ 0, so tokens + activity are the headline metrics here.
+
+ipcMain.handle('hermes:insights', () => {
+  const cost = 'COALESCE(actual_cost_usd, estimated_cost_usd, 0)'
+
+  const totals = sqliteQuery<Record<string, number>>(STATE_DB, [
+    'SELECT COUNT(*) AS sessions,',
+    'COALESCE(SUM(input_tokens),0) AS input_tokens,',
+    'COALESCE(SUM(output_tokens),0) AS output_tokens,',
+    'COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,',
+    'COALESCE(SUM(reasoning_tokens),0) AS reasoning_tokens,',
+    'COALESCE(SUM(tool_call_count),0) AS tool_calls,',
+    'COALESCE(SUM(message_count),0) AS messages,',
+    `COALESCE(SUM(${cost}),0) AS cost_usd`,
+    'FROM sessions',
+  ].join(' '))
+
+  const byModel = sqliteQuery(STATE_DB, [
+    'SELECT model,',
+    'COUNT(*) AS sessions,',
+    'COALESCE(SUM(input_tokens),0) AS input_tokens,',
+    'COALESCE(SUM(output_tokens),0) AS output_tokens,',
+    'COALESCE(SUM(input_tokens + output_tokens),0) AS total_tokens,',
+    `COALESCE(SUM(${cost}),0) AS cost_usd`,
+    "FROM sessions WHERE model IS NOT NULL AND model != ''",
+    'GROUP BY model ORDER BY total_tokens DESC LIMIT 12',
+  ].join(' '))
+
+  const bySource = sqliteQuery(STATE_DB, [
+    'SELECT source, COUNT(*) AS sessions,',
+    'COALESCE(SUM(input_tokens + output_tokens),0) AS total_tokens',
+    'FROM sessions GROUP BY source ORDER BY sessions DESC',
+  ].join(' '))
+
+  const daily = sqliteQuery(STATE_DB, [
+    "SELECT date(started_at, 'unixepoch', 'localtime') AS day,",
+    'COUNT(*) AS sessions,',
+    'COALESCE(SUM(input_tokens + output_tokens),0) AS tokens,',
+    `COALESCE(SUM(${cost}),0) AS cost_usd`,
+    "FROM sessions WHERE started_at >= strftime('%s', 'now', '-30 days')",
+    'GROUP BY day ORDER BY day ASC',
+  ].join(' '))
+
+  return { totals: totals[0] ?? {}, byModel, bySource, daily }
 })
 
 // ─── IPC: HTTP proxy to Hermes API ────────────────────────────────────────────

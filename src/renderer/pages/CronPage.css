@@ -248,3 +248,56 @@
   border-color: rgba(var(--red-rgb),0.25);
   color: var(--red);
 }
+
+/* ─── enriched job status ────────────────────────────────────────────────── */
+.job-head-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.job-head-row .job-name { margin-bottom: 0; }
+
+.job-tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+}
+.job-tag.agent  { background: var(--accent-soft); color: var(--accent-2); }
+.job-tag.script { background: var(--surface-3);   color: var(--text-secondary); }
+.job-tag.paused { background: rgba(var(--red-rgb),0.12); color: var(--red); }
+
+.job-meta-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.job-status {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.job-status.ok  { background: var(--green-glow); color: var(--green); }
+.job-status.err { background: rgba(var(--red-rgb),0.12); color: var(--red); }
+
+.job-runs {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.job-prompt.mono { font-family: 'SF Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+.job-paused-reason { color: var(--red); opacity: 0.8; }
+
+.job-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--red);
+  background: rgba(var(--red-rgb),0.06);
+  border: 1px solid rgba(var(--red-rgb),0.16);
+  border-radius: 6px;
+  padding: 5px 9px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.job-btn:disabled { opacity: 0.4; cursor: default; }
+.job-btn.play:hover { background: rgba(var(--green-rgb),0.12); color: var(--green); border-color: rgba(var(--green-rgb),0.25); }

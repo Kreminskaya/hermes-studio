@@ -4,7 +4,7 @@
 
 ### A native macOS app for [Hermes](https://github.com/nikvdp/hermes) AI agents
 
-> Streaming chat · Live Kanban · Cron jobs · Three themes · No terminal needed.
+> Streaming chat · Session history · Usage insights · Live Kanban · Cron control · Skills · Three themes · No terminal needed.
 
 <br/>
 
@@ -48,6 +48,20 @@ A proper chat interface with everything you'd expect from a modern AI client.
 - **Auto-named sessions** — chats are titled from your first message, not "Untitled"
 - **Tab-safe history** — switching to Kanban and back doesn't wipe your chat state
 
+### 🕘 History
+A searchable archive of every session Hermes has ever run on your Mac.
+
+- Search across titles, first messages and models
+- Filter by source (CLI, API, Cron, Subagent) with live counts
+- Click any session to read its full message transcript in a side panel
+
+### 📊 Insights
+Usage analytics pulled straight from your session history.
+
+- Totals for sessions, tokens, tool calls, cache reads and estimated cost
+- 30-day activity chart
+- Breakdowns by model and by source
+
 ### 📋 Kanban
 A live board showing exactly what every agent is working on right now.
 
@@ -57,18 +71,24 @@ A live board showing exactly what every agent is working on right now.
 - One-click refresh
 
 ### ⏰ Cron
-Browse and manage all scheduled agent jobs without touching a config file.
+A full control panel for scheduled agent jobs — no config file required.
 
-- Enable / disable jobs
-- Trigger any job manually on demand
+- Pause, resume, run-now, create and delete jobs
+- Rich per-job status: last result (ok / error), run count, next-run countdown
 - Human-readable schedule display
 
-### 📚 Skills
-Browse every installed Hermes skill in a visual card grid — name, description, category, version, tags.
+### ✨ Skills
+Browse every installed Hermes skill in a searchable card grid — and toggle each one on or off.
+
+- Search by name, description, category or tag
+- Enable / disable individual skills right from the grid
+- Shows how many skills are currently active
 
 ### ⚙️ Settings
+- **In-app updates** — check for and install new Hermes releases, with live progress
+- **Task notifications** — native macOS alerts when an agent finishes a Kanban task
 - **Three themes:** Dark, Light, Lime — switch instantly, no restart required
-- Theme preference saved between sessions
+- Live runtime version shown in the sidebar
 
 ---
 
@@ -219,15 +239,17 @@ All colors are CSS custom properties — adding a new theme is a single `[data-t
 
 - [x] Streaming chat with real-time tool progress
 - [x] Live Kanban board (reads from Hermes SQLite)
-- [x] Cron job management
-- [x] Skills browser
+- [x] Cron control — pause/resume/run/create with per-job status
+- [x] Skills browser with enable/disable toggles
+- [x] Searchable session history with transcript viewer
+- [x] Usage insights (tokens, cost, models, activity)
+- [x] In-app Hermes updates with live progress
+- [x] Native notifications when an agent finishes a task
 - [x] Three themes (Dark, Light, Lime)
 - [x] File & image attachments in chat
 - [x] Stop button — interrupt agent mid-run
 - [x] Pinned sessions + last-active indicator
-- [ ] Search across sessions
 - [ ] Multi-profile switcher in UI
-- [ ] Notifications when agent finishes a task
 - [ ] Windows / Linux support
 
 ---

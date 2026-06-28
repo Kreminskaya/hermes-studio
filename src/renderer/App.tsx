@@ -26,12 +26,14 @@ import KanbanPage from './pages/KanbanPage'
 import CronPage from './pages/CronPage'
 import SettingsPage, { type Theme } from './pages/SettingsPage'
 import SkillsPage from './pages/SkillsPage'
+import InsightsPage from './pages/InsightsPage'
+import HistoryPage from './pages/HistoryPage'
 import SetupBanner from './components/SetupBanner'
 import StatusBar from './components/StatusBar'
 import LaunchOverlay from './components/LaunchOverlay'
 import './styles/app.css'
 
-export type Page = 'chat' | 'kanban' | 'cron' | 'skills' | 'settings'
+export type Page = 'chat' | 'history' | 'kanban' | 'cron' | 'skills' | 'insights' | 'settings'
 
 export interface GatewayState {
   gateway_state: string
@@ -50,6 +52,7 @@ export default function App() {
   const [gatewayState, setGatewayState] = useState<GatewayState | null>(null)
   const [apiReady, setApiReady] = useState<boolean | null>(null)
   const [profiles, setProfiles] = useState<HermesProfile[]>([])
+  const [version, setVersion] = useState<HermesVersion | null>(null)
   const [theme, setTheme] = useState<Theme>(() =>
     (localStorage.getItem('hermes_theme') as Theme) ?? 'gray'
   )
@@ -74,6 +77,13 @@ export default function App() {
       try { setGatewayState(JSON.parse(raw)) } catch {}
     })
 
+    // Navigate when the user clicks a native notification
+    const unsubNav = window.hermes?.onNavigate?.((p) => setPage(p as Page))
+
+    // Sync the saved notification preference down to the main process
+    const notifPref = localStorage.getItem('hermes_notifications')
+    window.hermes?.setNotifications?.(notifPref === null ? true : notifPref === 'true')
+
     // Fallback: if main never sends launch-status (e.g. already running before window loaded)
     setTimeout(async () => {
       const res = await window.hermes?.checkRunning?.()
@@ -83,16 +93,18 @@ export default function App() {
       }
     }, 4000)
 
-    return () => { unsubLaunch?.(); unsubGateway?.() }
+    return () => { unsubLaunch?.(); unsubGateway?.(); unsubNav?.() }
   }, [])
 
   async function loadInitialState() {
-    const [state, profs] = await Promise.all([
+    const [state, profs, ver] = await Promise.all([
       window.hermes?.gatewayState?.(),
       window.hermes?.profiles?.(),
+      window.hermes?.hermesVersion?.(),
     ])
     setGatewayState(state ?? null)
     setProfiles(profs ?? [])
+    if (ver?.ok) setVersion(ver)
     checkApiReady()
   }
 
@@ -135,6 +147,7 @@ export default function App() {
           gatewayState={gatewayState}
           profiles={profiles}
           theme={theme}
+          version={version}
         />
         <main className="main-content">
           {apiReady === false && (
@@ -145,9 +158,11 @@ export default function App() {
           )}
           <PageErrorBoundary>
             <div style={{ display: page === 'chat'     ? 'contents' : 'none' }}><ChatPage apiReady={apiReady === true} /></div>
+            <div style={{ display: page === 'history'  ? 'contents' : 'none' }}><HistoryPage active={page === 'history'} /></div>
             <div style={{ display: page === 'kanban'   ? 'contents' : 'none' }}><KanbanPage /></div>
             <div style={{ display: page === 'cron'     ? 'contents' : 'none' }}><CronPage /></div>
             <div style={{ display: page === 'skills'   ? 'contents' : 'none' }}><SkillsPage /></div>
+            <div style={{ display: page === 'insights' ? 'contents' : 'none' }}><InsightsPage active={page === 'insights'} /></div>
             <div style={{ display: page === 'settings' ? 'contents' : 'none' }}><SettingsPage theme={theme} onTheme={setTheme} /></div>
           </PageErrorBoundary>
         </main>
@@ -170,11 +185,22 @@ declare global {
       enableApiServer:(apiKey?: string) => Promise<{ ok: boolean; error?: string }>
       profiles:       () => Promise<HermesProfile[]>
       sessions:       (limit?: number) => Promise<HermesSession[]>
+      sessionsHistory:(limit?: number) => Promise<HistorySession[]>
       sessionMessages:(sessionId: string) => Promise<HermesMessage[]>
       kanbanTasks:    () => Promise<KanbanTask[]>
       kanbanStats:    () => Promise<KanbanStat[]>
       checkRunning:   () => Promise<{ running: boolean }>
-      skills:         () => Promise<{ category: string; name: string; description: string; tags: string[]; version: string }[]>
+      skills:         () => Promise<{ category: string; name: string; description: string; tags: string[]; version: string; enabled: boolean }[]>
+      skillToggle:    (name: string, enable: boolean) => Promise<{ ok: boolean; name?: string; enabled?: boolean; error?: string }>
+      insights:       () => Promise<HermesInsights>
+      hermesVersion:  () => Promise<HermesVersion>
+      updateCheck:    () => Promise<{ ok: boolean; available?: boolean; behind?: number | null; raw?: string; error?: string }>
+      updateRun:      () => Promise<{ ok: boolean; started?: boolean; error?: string }>
+      onUpdateProgress:(cb: (e: { line: string }) => void) => () => void
+      onUpdateDone:   (cb: (e: { ok: boolean; code?: number; error?: string }) => void) => () => void
+      setNotifications:(enabled: boolean) => Promise<{ ok: boolean; enabled: boolean }>
+      testNotification:() => Promise<{ ok: boolean; error?: string }>
+      onNavigate:     (cb: (page: string) => void) => () => void
       restart:        () => Promise<{ ok: boolean }>
       onLaunchStatus: (cb: (s: { status: string; detail?: string }) => void) => () => void
       onGatewayState: (cb: (raw: string) => void) => () => void
@@ -197,6 +223,10 @@ export interface HermesSession {
   actual_cost_usd: number | null
   model: string | null
   first_user_msg?: string | null
+}
+
+export interface HistorySession extends HermesSession {
+  source: string | null
 }
 
 export interface HermesMessage {
@@ -234,3 +264,34 @@ export interface KanbanStat {
   assignee: string | null
   count: number
 }
+
+export interface HermesVersion {
+  ok: boolean
+  version: string | null
+  build: string | null
+  upstream: string | null
+  status: string
+  updateAvailable: boolean
+  error?: string
+}
+
+export interface InsightTotals {
+  sessions: number
+  input_tokens: number
+  output_tokens: number
+  cache_read_tokens: number
+  reasoning_tokens: number
+  tool_calls: number
+  messages: number
+  cost_usd: number
+}
+
+export interface InsightsInsights {
+  totals: Partial<InsightTotals>
+  byModel: { model: string; sessions: number; input_tokens: number; output_tokens: number; total_tokens: number; cost_usd: number }[]
+  bySource: { source: string; sessions: number; total_tokens: number }[]
+  daily: { day: string; sessions: number; tokens: number; cost_usd: number }[]
+}
+
+// Alias kept short for the window.hermes signature above
+export type HermesInsights = InsightsInsights
